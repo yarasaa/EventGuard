@@ -1801,7 +1801,9 @@ are written under `.artifacts/test-results`. Set `EVENTGUARD_PACKAGE_OUTPUT` to 
 an existing local package feed while packaging elsewhere. `eng/build.sh` also accepts
 an optional output-directory argument.
 
-The dev.28 local regression record contains **2,044 passing test cases across .NET 8/10**.
+The dev.28 [hosted Ubuntu CI run](https://github.com/yarasaa/EventGuard/actions/runs/40410916848)
+passed **2,084 test cases across .NET 8/10**, all five samples, the four onboarding combinations
+and 26 package-only pilot scenarios.
 The package-only onboarding and composable-execution checks each passed all four combinations
 of framework and store. The latter verifies 205 selected records, 100/100/5 batches, repeated
 CDC notifications, service outcomes and application-owned status updates. Its service and
@@ -1810,9 +1812,9 @@ CDC transport are synthetic; PostgreSQL and SQL Server are real local fixtures.
 Coverage includes native transactions, duplicate/conflict handling, revision guards, retry,
 lease recovery, process failure, shared EF transactions, broker ingestion, dashboard access
 control and optional-module state transitions. Use the separate recovery drills below for
-backup, node and OIDC scenarios. SQL Server was tested as a Linux x64 engine under macOS
-ARM emulation. Native Linux qualification and independent developer onboarding remain open.
-GitHub Actions is configured for Ubuntu; a successful hosted CI run is still required.
+backup, node and OIDC scenarios. SQL Server was tested both under macOS ARM emulation
+and natively in hosted Ubuntu x64 CI. Independent developer onboarding and acceptance
+of a specific production deployment remain separate requirements.
 
 Raw logs, test output and machine-specific evidence stay under the ignored `.artifacts/`
 directory. Re-run the commands to produce results for your own environment.
@@ -2062,8 +2064,11 @@ and API/schema changes explicitly. Keep dependency/container versions pinned and
 
 The repository contains one maintained Markdown document: this README. Packages embed
 this same file and declare MIT licensing. CI checks repository consistency, builds/tests
-the pinned matrix and builds the package-only pilot. No workflow publishes NuGet packages
-or deploys applications. Local caches, binaries, credentials/certificates, raw evidence
+the pinned matrix and builds the package-only pilot. Only a fully successful run saves the
+16 verified packages and their SHA-256 manifest for 14 days. The separate, manually started
+NuGet preview workflow publishes those exact files after validating the source commit,
+version, CI result and package contents. No workflow deploys applications.
+Local caches, binaries, credentials/certificates, raw evidence
 and historical research are excluded from the source candidate.
 
 The public tree contains the libraries and dashboard in `src/`, integration examples in
@@ -2097,13 +2102,53 @@ public API within that major version; a breaking API needs a new major version. 
 project has not made a stable-release support commitment or published a public package.
 
 Public source releases and NuGet publication are separate steps. Release maintainers must
-verify package ownership, configure the actual repository URL and qualify the release candidate
-before publishing. Build scripts do not commit, push, publish packages or deploy applications.
+verify package ownership and qualify the release candidate before publishing. Local build
+scripts do not commit, push, publish packages or deploy applications.
+
+### Publish a NuGet preview
+
+The [publication workflow](.github/workflows/publish-nuget.yml) uses
+[NuGet Trusted Publishing](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing).
+The configured NuGet account is `yarasa`; the GitHub repository owner is `yarasaa`.
+These are different account names. Configure a NuGet trusted publishing policy with:
+
+| Setting | Value |
+| --- | --- |
+| NuGet policy owner | `yarasa` |
+| GitHub repository owner | `yarasaa` |
+| Repository | `EventGuard` |
+| Workflow file | `publish-nuget.yml` (filename only) |
+| Environment | `nuget` |
+| Package pattern | `EventGuard.*` |
+| Permissions | Push new packages and new versions |
+
+Create the matching `nuget` environment in GitHub repository settings and restrict its
+deployment branches to `main`. Add a required reviewer when a separate release approval
+is desired. Never paste an API key into the repository or workflow; the login action
+exchanges GitHub's identity for a short-lived publishing credential.
+
+1. Push the reviewed candidate to `main` and wait for **build-and-reliability** to pass.
+   Its artifact must contain all 16 packages and `release.json`; older runs without this
+   artifact do not qualify. Record the numeric run ID from its Actions URL.
+2. Open **Actions → publish-nuget-preview → Run workflow**, choose `main`, enter that CI
+   run ID and the exact preview version from `Directory.Build.props` (currently `0.1.0-dev.28`).
+   The workflow refuses another commit, another branch, a failed/incomplete CI run,
+   pull-request builds, stable versions, missing/extra packages or changed package bytes.
+   It downloads the tested packages without rebuilding or repeating the native test suite.
+3. Wait for all packages to finish NuGet validation/indexing. Verify a fresh application
+   using only nuget.org with the exact version, then update this README's release status
+   and public installation examples. A successful upload alone is not an installation check.
+
+NuGet publishes packages individually. If an upload fails partway through, inspect the
+error and rerun the same workflow for the same commit and CI run; already uploaded versions
+are skipped and never overwritten. A changed candidate needs a new version and a new CI run.
+Expired artifacts require a new successful CI run. Name availability checks do not reserve
+package IDs or prove permission to publish them.
 
 ## Known limitations
 
 - Experimental API/schema; no production support or availability promise.
-- Native Linux x64 SQL Server, production OpenShift/OIDC policy, router certificate renewal,
+- Production OpenShift/OIDC policy, router certificate renewal,
   storage/database HA and multi-node broker failover need deployment-specific acceptance.
   Local real OIDC, backend certificate renewal, native PostgreSQL backup/restore and a
   three-node worker crash drill passed with the limits described above. The OpenShift Local

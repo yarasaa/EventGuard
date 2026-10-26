@@ -67,6 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - run: python3 eng/check-repository.py
+      - run: python3 eng/test-release.py
       - run: python3 eng/bootstrap_dotnet.py
       - id: verify
         run: bash eng/verify.sh
@@ -95,3 +96,14 @@ jobs:
         run: bash pilots/CatalogPilot/pilot.sh build
       - if: ${{ !cancelled() && steps.pilot_build.outcome == 'success' }}
         run: bash pilots/CatalogPilot/pilot.sh verify --framework both
+      - name: Record verified package hashes
+        run: python3 eng/verify-release.py record --packages .artifacts/packages --commit "$GITHUB_SHA"
+      - name: Save verified packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nuget-packages-${{ github.sha }}
+          path: |
+            .artifacts/packages/*.nupkg
+            .artifacts/packages/release.json
+          if-no-files-found: error
+          retention-days: 14

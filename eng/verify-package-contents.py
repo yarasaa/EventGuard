@@ -30,6 +30,16 @@ def inspect(path, package, version):
             manifest = ET.fromstring(archive.read(package + '.nuspec'))
             if manifest.findtext('{*}metadata/{*}id') != package or manifest.findtext('{*}metadata/{*}version') != version:
                 errors.append('Package identity does not match the selected source version')
+            if manifest.findtext('{*}metadata/{*}projectUrl') != 'https://github.com/yarasaa/EventGuard':
+                errors.append('Package project URL must identify the public repository')
+            repository = manifest.find('{*}metadata/{*}repository')
+            if repository is None or repository.get('type') != 'git' or repository.get('url') != 'https://github.com/yarasaa/EventGuard':
+                errors.append('Package repository metadata is missing or incorrect')
+            license = manifest.find('{*}metadata/{*}license')
+            if license is None or license.get('type') != 'expression' or license.text != 'MIT':
+                errors.append('Package license must be the MIT expression')
+            if manifest.findtext('{*}metadata/{*}readme') != 'README.md':
+                errors.append('Package README metadata is missing')
             for dependency in manifest.findall('.//{*}dependency'):
                 if dependency.get('id', '').startswith('EventGuard.') and dependency.get('version') != version:
                     errors.append('Mixed EventGuard dependency version: ' + dependency.get('id'))
