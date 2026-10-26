@@ -9,10 +9,14 @@
     <Version>0.1.0-dev.28</Version>
     <Authors>EventGuard contributors</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>eventguard.png</PackageIcon>
     <PackageProjectUrl>https://github.com/yarasaa/EventGuard</PackageProjectUrl>
     <RepositoryUrl>https://github.com/yarasaa/EventGuard</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>event-driven;idempotency;outbox;inbox;dotnet;kafka;rabbitmq</PackageTags>
     <Description>Configurable event reliability primitives. Experimental; not production ready.</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)src/EventGuard.Dashboard/wwwroot/eventguard.png" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
 </Project>

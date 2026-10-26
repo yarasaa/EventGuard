@@ -18,14 +18,18 @@ def inspect(path, package, version):
         if len(names) != len(set(names)):
             errors.append('Duplicate archive entries')
         for name in names:
-            allowed = name in {'_rels/.rels', '[Content_Types].xml', 'README.md', 'LICENSE', package + '.nuspec'}
+            allowed = name in {'_rels/.rels', '[Content_Types].xml', 'README.md', 'LICENSE', 'eventguard.png', package + '.nuspec'}
             allowed |= bool(re.fullmatch(r'package/services/metadata/core-properties/(?:[0-9a-f]+|nuget)\.psmdcp', name))
             allowed |= name in {f'lib/{tfm}/{package}.{suffix}' for tfm in ['net8.0', 'net10.0'] for suffix in ['dll', 'xml']}
             if not allowed:
                 errors.append('Unexpected package entry: ' + name)
-        for required in ['README.md', 'LICENSE', package + '.nuspec', f'lib/net8.0/{package}.dll', f'lib/net10.0/{package}.dll']:
+        for required in ['README.md', 'LICENSE', 'eventguard.png', package + '.nuspec', f'lib/net8.0/{package}.dll', f'lib/net10.0/{package}.dll']:
             if required not in names:
                 errors.append('Missing package entry: ' + required)
+        if 'eventguard.png' in names:
+            icon = archive.read('eventguard.png')
+            if len(icon) > 1_000_000 or icon != (ROOT / 'src/EventGuard.Dashboard/wwwroot/eventguard.png').read_bytes():
+                errors.append('Package icon must match the shared logo and remain below 1 MB')
         if package + '.nuspec' in names:
             manifest = ET.fromstring(archive.read(package + '.nuspec'))
             if manifest.findtext('{*}metadata/{*}id') != package or manifest.findtext('{*}metadata/{*}version') != version:
@@ -40,6 +44,8 @@ def inspect(path, package, version):
                 errors.append('Package license must be the MIT expression')
             if manifest.findtext('{*}metadata/{*}readme') != 'README.md':
                 errors.append('Package README metadata is missing')
+            if manifest.findtext('{*}metadata/{*}icon') != 'eventguard.png':
+                errors.append('Package icon metadata is missing')
             for dependency in manifest.findall('.//{*}dependency'):
                 if dependency.get('id', '').startswith('EventGuard.') and dependency.get('version') != version:
                     errors.append('Mixed EventGuard dependency version: ' + dependency.get('id'))

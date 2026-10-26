@@ -8,7 +8,7 @@ a:focus-visible,button:focus-visible,select:focus-visible{outline:3px solid #34b
 .skip:focus{top:12px}
 .sidebar{width:230px;background:#12282b;color:#dce7e5;position:fixed;inset:0 auto 0 0;padding:31px 22px;display:flex;flex-direction:column}
 .brand{display:flex;gap:10px;align-items:center;font-size:20px;font-weight:650;letter-spacing:-.6px}
-.brand-mark{display:grid;place-items:center;background:#9ce3c6;color:#133b32;width:30px;height:34px;font-size:22px;border-radius:8px 8px 12px 8px}
+.brand-mark{display:block;object-fit:contain;flex-shrink:0;background:#f2faf7;width:34px;height:34px;padding:3px;border-radius:8px}
 .beta{font-size:8px;color:#99b2ae;border:1px solid #3c5355;border-radius:4px;padding:2px 4px;letter-spacing:1px}
 .nav-label{font-size:10px;letter-spacing:1.8px;color:#7d9996;margin:51px 12px 14px}
 .nav-item{padding:13px 14px;display:flex;align-items:center;gap:13px;border-radius:7px}

@@ -5,6 +5,7 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 import json
 import re
+import struct
 import subprocess
 import sys
 from urllib.parse import unquote, urlsplit
@@ -109,6 +110,8 @@ def main() -> None:
     props = ET.parse(ROOT / "Directory.Build.props")
     if props.findtext(".//PackageLicenseExpression") != "MIT":
         errors.append("Package license expression must match LICENSE (MIT).")
+    if props.findtext(".//PackageIcon") != "eventguard.png":
+        errors.append("Packages must use the shared EventGuard icon.")
     if not (ROOT / "LICENSE").read_text().startswith("MIT License\n"):
         errors.append("Missing MIT license text.")
     version = props.findtext(".//Version")
@@ -149,6 +152,16 @@ def main() -> None:
         source = ROOT / path
         if source.is_symlink():
             errors.append(f"Symlink requires review before inclusion in public source: {path}")
+            continue
+        if path == Path("src/EventGuard.Dashboard/wwwroot/eventguard.png"):
+            data = source.read_bytes()
+            if (len(data) < 33 or len(data) > 1_000_000 or data[:8] != b"\x89PNG\r\n\x1a\n"
+                    or data[12:16] != b"IHDR"):
+                errors.append("The shared logo must be a PNG smaller than 1 MB.")
+            else:
+                width, height = struct.unpack(">II", data[16:24])
+                if width != height or not 32 <= width <= 2048 or data[25] != 6:
+                    errors.append("The shared logo must be square RGBA PNG, 32–2048 pixels.")
             continue
         try:
             content = source.read_text(encoding="utf-8")

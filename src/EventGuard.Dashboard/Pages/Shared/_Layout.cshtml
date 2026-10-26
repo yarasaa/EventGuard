@@ -14,12 +14,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@ViewData["Title"] · EventGuard</title>
+    <link rel="icon" type="image/png" href="~/eventguard.png" asp-append-version="true" />
     <link rel="stylesheet" href="~/dashboard.css" asp-append-version="true" />
 </head>
 <body>
     <a class="skip" href="#main">Skip to content</a>
     <aside class="sidebar">
-        <a class="brand" asp-page="/Index"><span class="brand-mark">E</span> EventGuard<span class="beta">DEV</span></a>
+        <a class="brand" asp-page="/Index"><img class="brand-mark" src="~/eventguard.png" asp-append-version="true" width="34" height="34" alt="" /> EventGuard<span class="beta">DEV</span></a>
         <div class="nav-label">OPERATIONS</div>
         @if (Queries.AllowedScopes(User).Count > 0)
         {

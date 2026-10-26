@@ -1,5 +1,7 @@
 # EventGuard
 
+<img src="https://raw.githubusercontent.com/yarasaa/EventGuard/main/src/EventGuard.Dashboard/wwwroot/eventguard.png" width="112" height="112" alt="EventGuard: protected event flow" />
+
 Reliable event processing for **.NET 8 and .NET 10**, with PostgreSQL or SQL Server,
 Kafka or RabbitMQ, and an optional operations dashboard.
 
@@ -2045,7 +2047,7 @@ routing; adding workers alone does not remove a store bottleneck.
 ## Contributing and release preparation
 
 `eng/pack.sh` runs the [NuGet content allowlist](eng/verify-package-contents.py) for all 16
-libraries. Only the package metadata, framework assemblies, README and license may ship;
+libraries. Only the package metadata, framework assemblies, logo, README and license may ship;
 deployment manifests, samples, tests and source files stay in the repository. A negative
 control proves that an accidental deployment file is rejected. This check is separate from
 API compatibility and vulnerability auditing.
