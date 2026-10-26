@@ -11,7 +11,7 @@ it for product synchronization, document indexing, notifications, integrations, 
 other event-driven applications. Your application defines its models and business rules.
 
 **Status:** experimental `0.1.0-dev.28`. The name, API and schema are provisional.
-Build the packages locally; there is no public NuGet release yet. The optional modules add
+Install the exact preview version from nuget.org, or build from source using the local feed below. The optional modules add
 typed jobs, consistent source snapshots, batches, external-service result handling and durable
 workflows. Your application supplies its business models, queries and service adapters.
 
@@ -216,15 +216,15 @@ should retain their ordinary immutable package lock files.
 
 ## Use the packages in your application
 
-Build the packages first. In your application's `NuGet.Config`, add the local feed
-alongside nuget.org. Replace `/absolute/path/to/EventGuard` with your checkout path;
-preserve any other feeds your application needs:
+For the published preview, install the packages directly from nuget.org; cloning or
+building this repository is not required. Keep all EventGuard packages on the same exact
+preview version. If your application has a `NuGet.Config`, ensure nuget.org is enabled
+and preserve any other feeds it needs:
 
 ```xml
 <configuration>
   <packageSources>
     <clear />
-    <add key="eventguard-local" value="/absolute/path/to/EventGuard/.artifacts/packages" />
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
   </packageSources>
 </configuration>
@@ -236,9 +236,13 @@ dotnet add package EventGuard.Runtime --version 0.1.0-dev.28
 dotnet add package EventGuard.RabbitMq --version 0.1.0-dev.28
 ```
 
-Nuget.org supplies native-driver and framework dependencies.
-For repeatable restore, configure both feeds and commit your application's package lock
-file. The pilot demonstrates package source mapping and an isolated cache.
+Nuget.org also supplies native-driver and framework dependencies. For repeatable restore,
+enable `RestorePackagesWithLockFile` and commit your application's package lock file.
+
+For source development or an unpublished candidate, [build locally](#1-build-locally),
+then add `<add key="eventguard-local" value="/absolute/path/to/EventGuard/.artifacts/packages" />`
+to `packageSources`, replacing the path with your checkout. The pilot demonstrates
+package source mapping and an isolated cache for this development feed.
 
 | Package | Purpose |
 | --- | --- |
@@ -268,8 +272,9 @@ configuration and database setup. It consumes packages without project reference
 supports PostgreSQL and SQL Server. The default is a PostgreSQL product projection;
 replace that business model/handler with your own.
 
-After [building the local packages](#1-build-locally), run these commands with `dotnet`
-on your PATH. Create the application **outside the EventGuard checkout** so it does not
+The template is distributed in the source repository. Clone it, then run these commands
+with `dotnet` on your PATH; building the libraries is unnecessary when using the published
+preview. Create the application **outside the EventGuard checkout** so it does not
 inherit this repository's central build settings:
 
 ```bash
@@ -282,8 +287,8 @@ cd MyEventWorker
 ```
 
 Use `--framework net8.0` for .NET 8. Configure `NuGet.Config` as shown in
-[package installation](#use-the-packages-in-your-application), pointing its local feed to
-this checkout's `.artifacts/packages`. Then:
+[package installation](#use-the-packages-in-your-application), using nuget.org for the
+published preview or the optional local feed for source development. Then:
 
 ```bash
 dotnet restore
@@ -535,7 +540,7 @@ The pinned SDK creates a .NET 10 project. To target .NET 8 instead, change
 `<TargetFramework>net10.0</TargetFramework>` to `net8.0` in `MyEventConsumer.csproj`
 after creation; the bootstrap also installs the required .NET 8 runtime.
 
-Create `NuGet.Config` in that directory using the [two-feed configuration above](#use-the-packages-in-your-application).
+Create `NuGet.Config` in that directory using the [package-source configuration above](#use-the-packages-in-your-application).
 Then install only the packages needed for this consumer:
 
 ```bash
@@ -2032,7 +2037,7 @@ routing; adding workers alone does not remove a store bottleneck.
 
 | Symptom | Check |
 | --- | --- |
-| EventGuard package cannot be restored | Run `eng/build.sh`; configure the local feed plus nuget.org and the exact dev version. Public NuGet has not been populated. |
+| EventGuard package cannot be restored | Enable nuget.org, use the exact preview version and check package source mapping. For a source-only candidate, run `eng/build.sh` and add the local feed. Newly uploaded versions must finish NuGet validation/indexing before restore. |
 | Native tests cannot connect | Start the corresponding Compose services, check their health and loopback ports. The fixture tools deliberately reject production addresses. |
 | Startup rejects schema or permissions | Run explicit migration with the appropriate identity; install enabled Operations read indexes and grant role-specific access. Do not make the worker perform DDL. |
 | SQL Server startup fails | Verify major 16+, RCSI on, delayed durability off, MARS off and a writable DB. Local ARM execution uses x64 emulation. |
@@ -2101,7 +2106,8 @@ suppressions. API compatibility is separate from behavioral, database and deploy
 compatibility: retain the native tests and backup/restore rehearsal. Prereleases require
 exact pins and explicit upgrade review. A future stable 1.x release must preserve its
 public API within that major version; a breaking API needs a new major version. This
-project has not made a stable-release support commitment or published a public package.
+project has not made a stable-release support commitment; preview publication does not
+change that status.
 
 Public source releases and NuGet publication are separate steps. Release maintainers must
 verify package ownership and qualify the release candidate before publishing. Local build
