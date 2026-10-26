@@ -71,17 +71,17 @@ public sealed class BrokerFixture : IAsyncLifetime
     public static long Committed(string group, string topic, int partition = 0)
     {
         using var consumer = Reader(group);
-        return consumer.Committed([new TopicPartition(topic, partition)], TimeSpan.FromSeconds(5)).Single().Offset.Value;
+        return CoordinatorRetry.CommittedAsync(
+            timeout => consumer.Committed([new TopicPartition(topic, partition)], timeout).Single().Offset.Value,
+            expected: null, TimeSpan.FromSeconds(20)).GetAwaiter().GetResult();
     }
     public static async Task WaitCommitAsync(string group, string topic, long offset, int partition = 0)
     {
-        var until = DateTime.UtcNow.AddSeconds(20);
-        while (DateTime.UtcNow < until)
-        {
-            if (Committed(group, topic, partition) == offset) return;
-            await Task.Delay(50);
-        }
-        Assert.Equal(offset, Committed(group, topic, partition));
+        // Retain the observer so native coordinator rediscovery survives between probes.
+        using var consumer = Reader(group);
+        await CoordinatorRetry.CommittedAsync(
+            timeout => consumer.Committed([new TopicPartition(topic, partition)], timeout).Single().Offset.Value,
+            offset, TimeSpan.FromSeconds(20));
     }
     public static ConsumeResult<byte[], byte[]> Read(string topic, long offset = 0, int partition = 0)
     {
@@ -96,23 +96,30 @@ public sealed class BrokerFixture : IAsyncLifetime
             new("kafka", "local", "v1", topic, key), body ?? [1, 2, 3], headers: headers);
     public async Task DisposeAsync()
     {
-        Producer?.Dispose();
         if (Admin is null) return;
-        foreach (var group in _groups)
+        var failures = new List<Exception>();
+        try
         {
-            // Unsubscribe + native Dispose does not promise immediate coordinator removal.
-            // Wait beyond this fixture's six-second session before treating cleanup as failed.
-            var deadline = DateTime.UtcNow.AddSeconds(15);
-            while (true)
+            foreach (var group in _groups)
             {
-                try { await Admin.DeleteGroupsAsync([group]); break; }
-                catch (DeleteGroupsException e) when (e.Results.All(r => r.Error.Code == ErrorCode.GroupIdNotFound)) { break; }
-                catch (DeleteGroupsException e) when (DateTime.UtcNow < deadline && e.Results.All(r => r.Error.Code == ErrorCode.NonEmptyGroup))
-                { await Task.Delay(200); }
+                // Native disposal can precede coordinator removal. Keep every request inside
+                // the total cleanup budget, and still clean other resources after a failure.
+                try
+                {
+                    await CoordinatorRetry.DeleteGroupAsync(timeout => Admin.DeleteGroupsAsync([group],
+                        new DeleteGroupsOptions { RequestTimeout = timeout }), TimeSpan.FromSeconds(15));
+                }
+                catch (Exception error) { failures.Add(error); }
             }
+            try
+            {
+                if (!_topics.IsEmpty) await Admin.DeleteTopicsAsync(_topics,
+                    new DeleteTopicsOptions { RequestTimeout = TimeSpan.FromSeconds(15) });
+            }
+            catch (Exception error) { failures.Add(error); }
         }
-        if (!_topics.IsEmpty) await Admin.DeleteTopicsAsync(_topics);
-        Admin.Dispose();
+        finally { Producer?.Dispose(); Admin.Dispose(); }
+        if (failures.Count > 0) throw new AggregateException("Kafka fixture cleanup failed.", failures);
     }
 }
 

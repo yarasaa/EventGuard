@@ -45,7 +45,12 @@ public sealed class HostedConsumerTests(BrokerFixture broker, PostgreSql.Tests.D
             Assert.Equal(1, await db.EffectCount(work.Id));
             Assert.Equal(1, resolutions);
         }
-        finally { await host.StopAsync(timeout.Token); }
+        finally
+        {
+            // The observation deadline may already have expired; shutdown needs its own budget.
+            using var shutdown = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await host.StopAsync(shutdown.Token);
+        }
         Assert.Null(host.Services.GetRequiredService<EventGuardHostStatus>().Failure);
     }
 
