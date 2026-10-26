@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Generate package-only apps outside the checkout and exercise both native stores.
 
-Only the repository's disposable Docker fixtures are used. This is an automated
+Only disposable Docker fixtures with the repository's local ports and credentials
+are used, either through Compose or explicit CI service container IDs. This is an automated
 README/template check, not evidence of an independent developer's usability study.
 """
 import argparse
@@ -23,13 +24,15 @@ from xml.sax.saxutils import escape
 
 ROOT = Path(__file__).resolve().parents[1]
 DOTNET = ROOT / ".tools/dotnet/dotnet"
-DOCKER = ["bash", str(ROOT / "eng/docker.sh"), "compose", "exec", "-T"]
+DOCKER = ["bash", str(ROOT / "eng/docker.sh")]
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--packages", type=Path, default=ROOT / ".artifacts/packages")
     parser.add_argument("--output", type=Path, required=True, help="New evidence directory; never overwritten.")
+    parser.add_argument("--postgres-container", help="Disposable PostgreSQL container ID/name; defaults to the local Compose service.")
+    parser.add_argument("--sqlserver-container", help="Disposable SQL Server container ID/name; defaults to the local Compose service.")
     parser.add_argument("--backup-restore", action="store_true", help="Restore a native backup into a second disposable database and verify deduplication and projection.")
     parser.add_argument("--optional-adapters", action="store_true", help="Also compile EF Core and Kafka/RabbitMQ hosting APIs from NuGet packages outside the checkout.")
     options = parser.parse_args()
@@ -56,13 +59,21 @@ def main():
             raise RuntimeError(f"Command returned {completed.returncode}, expected {expected}: {args[0:3]}\n{completed.stdout}")
         return completed.stdout
 
+    containers = {"postgres": options.postgres_container, "sqlserver": options.sqlserver_container}
+
+    def fixture_exec(service, *args):
+        container = containers[service]
+        # Actions services have no Compose project labels. Keep stdin open for pg_restore.
+        command = ["exec", "-i", container] if container else ["compose", "exec", "-T", service]
+        return DOCKER + command + list(args)
+
     def pg(database, sql):
-        return run(DOCKER + ["postgres", "psql", "-U", "eventguard", "-d", database, "-v", "ON_ERROR_STOP=1", "-At", "-c", sql])
+        return run(fixture_exec("postgres", "psql", "-U", "eventguard", "-d", database, "-v", "ON_ERROR_STOP=1", "-At", "-c", sql))
 
     def sql(database, query):
-        return run(DOCKER + ["sqlserver", "bash", "-c",
+        return run(fixture_exec("sqlserver", "bash", "-c",
                    'exec /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -b "$@"',
-                   "--", "-d", database, "-h", "-1", "-W", "-Q", query])
+                   "--", "-d", database, "-h", "-1", "-W", "-Q", query))
 
     def check_restore(provider, database, framework, config, project, dll, work_id):
         restored = "eventguard_test_restore_" + uuid.uuid4().hex
@@ -73,11 +84,11 @@ def main():
         try:
             if provider == "PostgreSql":
                 with archive.open("xb") as target:
-                    subprocess.run(DOCKER + ["postgres", "pg_dump", "-U", "eventguard", "-d", database, "-Fc"],
+                    subprocess.run(fixture_exec("postgres", "pg_dump", "-U", "eventguard", "-d", database, "-Fc"),
                                    cwd=ROOT, env=env, stdout=target, check=True, timeout=120)
                 pg("postgres", f"CREATE DATABASE {restored}")
                 with archive.open("rb") as source:
-                    subprocess.run(DOCKER + ["postgres", "pg_restore", "-U", "eventguard", "-d", restored, "--exit-on-error"],
+                    subprocess.run(fixture_exec("postgres", "pg_restore", "-U", "eventguard", "-d", restored, "--exit-on-error"),
                                    cwd=ROOT, env=env, stdin=source, check=True, timeout=120)
             else:
                 sql("master", f"BACKUP DATABASE [{database}] TO DISK=N'{native_backup}' WITH COPY_ONLY, CHECKSUM, COMPRESSION")
@@ -85,7 +96,9 @@ def main():
                 sql("master", f"RESTORE DATABASE [{restored}] FROM DISK=N'{native_backup}' WITH CHECKSUM, "
                     f"MOVE N'{database}' TO N'/var/opt/mssql/data/{restored}.mdf', "
                     f"MOVE N'{database}_log' TO N'/var/opt/mssql/data/{restored}_log.ldf'")
-                run(["bash", ROOT / "eng/docker.sh", "compose", "cp", "sqlserver:" + native_backup, archive])
+                container = containers["sqlserver"]
+                copy = ["cp", container + ":" + native_backup, archive] if container else ["compose", "cp", "sqlserver:" + native_backup, archive]
+                run(DOCKER + copy)
             restored_config = config | {"EVENTGUARD_CONNECTION": config["EVENTGUARD_CONNECTION"].replace("Database=" + database, "Database=" + restored)}
             def restored_app(*args):
                 return run([DOTNET, dll, *args], cwd=project, overrides=restored_config)
@@ -105,7 +118,7 @@ def main():
             if provider == "PostgreSql": pg("postgres", f"DROP DATABASE IF EXISTS {restored} WITH (FORCE)")
             else:
                 sql("master", f"IF DB_ID('{restored}') IS NOT NULL BEGIN ALTER DATABASE [{restored}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{restored}]; END")
-                run(DOCKER + ["sqlserver", "rm", "-f", native_backup])
+                run(fixture_exec("sqlserver", "rm", "-f", native_backup))
 
     def check_dashboard(config, framework, provider, work_id):
         with socket.socket() as listener:
@@ -142,6 +155,9 @@ def main():
                         os.killpg(process.pid, signal.SIGKILL); process.wait(timeout=10)
 
     try:
+        # Fail with the fixture error before installing templates/restoring packages.
+        pg("postgres", "SELECT 1")
+        sql("master", "SET NOCOUNT ON; SELECT 1")
         run([DOTNET, "new", "install", ROOT / "templates/EventGuard.Worker", *hive])
         for framework in ("net8.0", "net10.0"):
             name = "Consumer" + framework.replace("net", "").replace(".", "")
