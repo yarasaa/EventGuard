@@ -1,0 +1,27 @@
+# Apply only after cluster administrators enable user workload monitoring.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eventguard-service-ca
+  namespace: eventguard
+  annotations: {service.beta.openshift.io/inject-cabundle: 'true'}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: eventguard-dashboard
+  namespace: eventguard
+spec:
+  selector: {matchLabels: {app: eventguard-dashboard}}
+  endpoints:
+    - port: https
+      path: /metrics
+      scheme: https
+      interval: 30s
+      scrapeTimeout: 5s
+      authorization:
+        type: Bearer
+        credentials: {name: eventguard-metrics, key: token}
+      tlsConfig:
+        serverName: eventguard-dashboard.eventguard.svc
+        ca: {configMap: {name: eventguard-service-ca, key: service-ca.crt}}

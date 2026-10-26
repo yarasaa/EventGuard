@@ -1,0 +1,14 @@
+# Supply the service CA PEM as destinationCACertificate before applying this example.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: eventguard-dashboard
+  namespace: eventguard
+spec:
+  host: eventguard.example.com
+  to: {kind: Service, name: eventguard-dashboard}
+  port: {targetPort: https}
+  tls:
+    termination: reencrypt
+    insecureEdgeTerminationPolicy: Redirect
+    destinationCACertificate: REPLACE_WITH_SERVICE_CA_PEM

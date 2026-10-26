@@ -1,0 +1,49 @@
+@page "/works/{scope}/{id:guid}"
+@model WorkModel
+@{ ViewData["Title"] = "Work details"; }
+<a class="back" href="@Model.ReturnUrl">← Back to work items</a>
+<div class="page-heading"><div><div class="eyebrow">@Model.Scope.Label</div><h1>Work details</h1><p>Persisted status and recent processing attempts.</p></div>@if (Model.CanReplay && Model.Data?.Value is not null) { <a class="button" asp-page="/Replay" asp-route-scope="@Model.Scope.Key" asp-route-id="@Model.Data?.Value?.Work.Id">Review replay eligibility</a> } else { <span class="read-only">Read only</span> }</div>
+@if (Model.Unavailable)
+{ <section class="notice error" role="alert"><h2>Data is temporarily unavailable</h2><p>This does not mean the record is missing. Please reload the page.</p></section> }
+else if (Model.Data?.Value is { } detail)
+{
+    var work = detail.Work;
+    var guidance = EventGuard.Operations.WorkGuidance.Explain(work, Model.Data.ReadFinishedAt);
+    <section class="card operation-card" aria-labelledby="processing-guidance">
+        <div class="card-heading"><h2 id="processing-guidance">Processing guidance</h2><code>@guidance.Code</code></div>
+        <p>@guidance.Explanation</p><p><strong>Next step:</strong> @guidance.NextStep</p>
+    </section>
+    <section class="card operation-card">
+        <div class="card-heading"><h2>@(string.IsNullOrWhiteSpace(Model.Scope.Operation) ? Model.Scope.Label : Model.Scope.Operation)</h2><span class="muted">Intended operation</span></div>
+        <p class="operation-copy">@(string.IsNullOrWhiteSpace(Model.Scope.Description) ? "The application has not provided an operation description." : Model.Scope.Description)</p>
+        <dl class="facts"><div><dt>Event type</dt><dd>@Model.Scope.EventType</dd></div><div><dt>Source</dt><dd>@Model.Scope.Source</dd></div><div><dt>Consumer</dt><dd>@Model.Scope.Consumer</dd></div></dl>
+        <p class="data-note">The description is supplied by the application. Processing status and attempts are shown below.</p>
+    </section>
+    <section class="card detail-card"><div class="card-heading"><code class="full-id">@work.Id</code><span class="status @work.State"><span class="small-dot"></span>@Display.State(work.State)</span></div><p class="explanation">@Display.Explanation(work.State)</p><dl class="facts"><div><dt>State version</dt><dd>@work.Version</dd></div><div><dt>Total attempts</dt><dd>@work.AttemptCount</dd></div><div><dt>Replay generation</dt><dd>@work.ReplayGeneration</dd></div><div><dt>Reason code</dt><dd>@(work.ReasonCode ?? "—")</dd></div><div><dt>Created · UTC</dt><dd>@Display.Time(work.CreatedAt)</dd></div><div><dt>Next attempt · UTC</dt><dd>@(work.State is WorkState.Pending or WorkState.RetryScheduled ? Display.Time(work.NextAttemptAt) : "—")</dd></div><div><dt>Completed · UTC</dt><dd>@Display.Time(work.CompletedAt)</dd></div><div><dt>Expires · UTC</dt><dd>@Display.Time(work.ExpiresAt)</dd></div></dl></section>
+    <section class="card data-card">
+        <div class="card-heading"><h2>Event data</h2><span class="muted">Selected fields from the accepted event</span></div>
+        @if (Model.DataUnavailable) { <p class="explanation" role="alert">Event data could not be read. Processing metadata is still available. Reload to try again.</p> }
+        else if (!Model.CanReadData) { <p class="explanation">Event data is not enabled for this scope or your account.</p> }
+        else if (Model.EventData?.Value is not { } eventData) { <p class="explanation">Event data is no longer available.</p> }
+        else if (eventData.Status != EventGuard.Operations.WorkDataStatus.Available) { <p class="explanation">@Display.DataStatus(eventData.Status)</p> }
+        else
+        {
+            <dl class="facts data-fields">@foreach (var field in eventData.Fields) { <div><dt>@field.Label</dt><dd>@(field.Value ?? "—")</dd>@if (field.Status != EventGuard.Operations.WorkDataValueStatus.Present) { <small>@Display.DataValueStatus(field.Status)</small> }</div> }</dl>
+            <p class="data-note">Read @Display.Time(Model.EventData!.ReadFinishedAt) UTC. Only fields selected by the application are displayed. These are input values; they do not prove a business change or external delivery.</p>
+        }
+    </section>
+    <section class="card history"><div class="card-heading"><h2>Attempt history</h2><span class="muted">Latest 50 attempts</span></div>
+    @if (detail.Attempts.Count == 0) { <div class="empty compact">This work item has no processing attempts yet.</div> }
+    else { <div class="table-scroll"><table><thead><tr><th>Attempt / generation</th><th>Result</th><th>Reason</th><th>Started · UTC</th><th>Finished · UTC</th></tr></thead><tbody>@foreach (var attempt in detail.Attempts) { <tr><td>#@attempt.Number / @attempt.Generation</td><td>@attempt.Status</td><td>@(attempt.ReasonCode ?? "—")</td><td>@Display.Time(attempt.StartedAt)</td><td>@Display.Time(attempt.FinishedAt)</td></tr> }</tbody></table></div> }
+    @foreach (var reason in detail.Attempts.Select(a => a.ReasonCode).Distinct())
+    {
+        if (EventGuard.Operations.WorkGuidance.AttemptExplanation(reason) is { } explanation)
+        { <p class="data-note"><code>@reason</code>: @explanation</p> }
+    }
+    @if (detail.HasOlderAttempts) { <p class="truncated">Older attempts are not included in this view.</p> }</section>
+    <section class="card history"><div class="card-heading"><h2>Replay requests</h2><span class="muted">Latest 20 requests</span></div>
+    @if (detail.Replays.Count == 0) { <div class="empty compact">No persisted replay requests.</div> }
+    else { <div class="table-scroll"><table><thead><tr><th>Request ID</th><th>Result</th><th>Generation / version</th><th>Created · UTC</th></tr></thead><tbody>@foreach (var replay in detail.Replays) { <tr><td><code>@replay.RequestId</code></td><td>@replay.Status</td><td>@replay.Generation / @replay.Version</td><td>@Display.Time(replay.CreatedAt)</td></tr> }</tbody></table></div> }
+    @if (detail.HasOlderReplays) { <p class="truncated">Older requests are not included in this view.</p> }</section>
+    <div class="footnote"><span aria-hidden="true">ⓘ</span><p>Last read: @Display.Time(Model.Data.ReadFinishedAt) UTC. Status and history are read separately and may reflect different instants. State version is separate from the application’s domain revision.</p></div>
+}

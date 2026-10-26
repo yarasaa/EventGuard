@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFrameworks>net8.0;net10.0</TargetFrameworks><IsPackable>false</IsPackable><IsTestProject>true</IsTestProject></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../ProcessSupport/PostgreSqlFaultTransport.cs" Link="PostgreSqlFaultTransport.cs" />
+    <ProjectReference Include="../../src/EventGuard.Operations.Replay.SqlServer/EventGuard.Operations.Replay.SqlServer.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Operations.Replay.PostgreSql/EventGuard.Operations.Replay.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Operations.PostgreSql/EventGuard.Operations.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Operations.SqlServer/EventGuard.Operations.SqlServer.csproj" />
+    <ProjectReference Include="../../src/EventGuard.PostgreSql/EventGuard.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/EventGuard.SqlServer/EventGuard.SqlServer.csproj" />
+    <ProjectReference Include="../EventGuard.Store.Conformance/EventGuard.Store.Conformance.csproj" />
+    <Compile Include="../EventGuard.PostgreSql.Tests/CommitReplyDropProxy.cs" Link="PostgreSqlCommitProxy.cs" />
+    <Compile Include="../EventGuard.SqlServer.Tests/CommitReplyDropProxy.cs" Link="SqlServerCommitProxy.cs" />
+    <Compile Include="../EventGuard.PostgreSql.Tests/DatabaseFixture.cs" Link="PostgreSqlFixture.cs" />
+    <Compile Include="../EventGuard.SqlServer.Tests/DatabaseFixture.cs" Link="SqlServerFixture.cs" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" /><PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" /><Using Include="Xunit" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,40 @@
+@page "/bulk-replay/{kind}/{scope}"
+@model BulkReplayModel
+@{ ViewData["Title"] = "Bulk replay"; }
+<a class="back" asp-page="@(Model.Kind == "consumer" ? "/Index" : "/Outbox")" asp-route-scope="@Model.ScopeKey">← Back to records</a>
+<div class="page-heading"><div><div class="eyebrow">@Model.Label</div><h1>Bulk replay</h1><p>Review an exact list of records and resume safely after an interrupted request.</p></div><span class="read-only">Replay operator</span></div>
+@if (Model.Error is not null) { <section class="notice error" role="alert"><h2>Batch unavailable</h2><p>@Model.Error</p></section> }
+@if (Model.Progress is { } progress)
+{
+    <section class="card"><div class="card-heading"><h2>@(progress.Complete ? "All request outcomes recorded" : "Batch in progress")</h2><span class="muted">@progress.Entries.Count(e => e.Status is not null) / @progress.Entries.Count</span></div>
+        <p class="explanation">Batch @progress.Request.RequestId · Prepared @Display.Time(progress.CreatedAt) UTC</p>
+        <div class="table-scroll"><table><thead><tr><th>Record ID</th><th>Expected version</th><th>Saved outcome</th><th>Request ID</th></tr></thead><tbody>@foreach (var entry in progress.Entries) { <tr><td><code>@entry.Id</code></td><td>@entry.ExpectedVersion</td><td>@(entry.Status ?? "No recorded result")</td><td><code>@entry.RequestId</code></td></tr> }</tbody></table></div>
+        <p class="data-note">Accepted means queued for its normal worker. Missing results may be pending or unconfirmed. Saved refusals, including rate limits, remain refusals when this plan is resumed.</p>
+    </section>
+}
+else if (Model.LookupRequestId is { } id && Model.Error is null)
+{ <section class="notice"><h2>No saved batch found for your account</h2><p>Batch @id has no visible plan yet. This does not prove a prior submission failed. Keep its original review form and retry the same request if needed.</p></section> }
+@if (Model.Review is { } review)
+{
+    <section class="card detail-card replay-card"><div class="card-heading"><h2>@(Model.Progress is null ? "Review before submitting" : "Resume the saved plan")</h2><span class="muted">@review.Request.Items.Count records</span></div>
+        <p class="explanation">Batch @review.Request.RequestId</p>
+        @if (Model.Progress is null) { <div class="table-scroll"><table><thead><tr><th>Record ID</th><th>Expected version</th></tr></thead><tbody>@foreach (var item in review.Request.Items) { <tr><td><code>@item.Id</code></td><td>@item.ExpectedVersion</td></tr> }</tbody></table></div> }
+        <div class="replay-reason"><h2>Your reason</h2><p>@review.Request.Reason</p></div>
+        @if (review.Request.AcknowledgePossibleDuplicate) { <div class="delivery-notice"><strong>Possible duplicate publication acknowledged</strong><p>This acknowledgement applies to every selected outgoing event.</p></div> }
+        <p class="explanation">Each record is checked and committed separately. Changes to status, version or tenant capacity can refuse individual requests. The saved selection stays fixed across retries.</p>
+        <form method="post" asp-page-handler="Submit" class="replay-actions"><input type="hidden" name="ticket" value="@review.Ticket" />
+            @if (!Model.Conflict) { <button class="button primary" type="submit">@(Model.Progress is not null ? "Resume same batch" : Model.Error is null ? "Submit bulk replay" : "Retry same batch")</button> }
+            <a class="button" asp-page="/BulkReplay" asp-route-kind="@Model.Kind" asp-route-scope="@Model.ScopeKey" asp-route-requestId="@review.Request.RequestId">Check saved progress</a>
+        </form>
+    </section>
+}
+else if (Model.Progress is null && Model.LookupRequestId is null)
+{
+    <section class="card detail-card replay-card"><form method="post" asp-page-handler="Review" class="replay-form">
+        <label for="ids">Record IDs</label><textarea name="ids" id="ids" rows="6" maxlength="1024" required placeholder="Paste up to 25 full record UUIDs, one per line."></textarea>
+        <p class="filter-hint">Only eligible dead-letter records in this scope can enter the review. The preview captures each current version.</p>
+        <label for="reason">Why should these records be replayed?</label><textarea name="reason" id="reason" rows="3" maxlength="1024" required></textarea>
+        @if (Model.Kind == "outbox") { <label class="acknowledgement"><input type="checkbox" name="acknowledgePossibleDuplicate" value="true" /> I acknowledge that another publication may create duplicates.</label> }
+        <button class="button primary" type="submit">Review selected records</button>
+    </form></section>
+}

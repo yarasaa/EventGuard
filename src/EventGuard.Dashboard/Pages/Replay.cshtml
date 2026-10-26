@@ -1,0 +1,37 @@
+@page "/works/{scope}/{id:guid}/replay"
+@model ReplayModel
+@{ ViewData["Title"] = "Replay request"; }
+<a class="back" asp-page="/Work" asp-route-scope="@Model.Scope.Key" asp-route-id="@Model.WorkId">← Back to work details</a>
+<div class="page-heading"><div><div class="eyebrow">@Model.Scope.Label</div><h1>Replay request</h1><p>Queue one failed work item for another processing attempt.</p></div><span class="read-only">Operator access</span></div>
+@if (Model.Error is not null) { <section class="notice error" role="alert"><h2>@(Model.OutcomeUnconfirmed ? "Outcome not confirmed" : "Request unavailable")</h2><p>@Model.Error</p></section> }
+@if (Model.Receipt is { } receipt)
+{
+    <section class="card detail-card"><div class="card-heading"><h2>@ReplayDisplay.Title(receipt.Result.Status)</h2><span class="muted">Saved request result</span></div>
+        <p class="explanation">@ReplayDisplay.Explanation(receipt.Result.Status)</p>
+        <dl class="facts"><div><dt>Request ID</dt><dd>@receipt.RequestId</dd></div><div><dt>Work ID</dt><dd>@receipt.Result.WorkId</dd></div><div><dt>Recorded generation</dt><dd>@receipt.Result.Generation</dd></div><div><dt>Recorded version</dt><dd>@receipt.Result.Version</dd></div><div><dt>Saved · UTC</dt><dd>@Display.Time(receipt.CreatedAt)</dd></div></dl>
+        <div class="replay-reason"><h2>Your reason</h2><p>@receipt.Reason</p></div>
+        <p class="data-note">This receipt describes the request outcome. Open work details to see subsequent processing attempts and the current status.</p>
+    </section>
+}
+else if (Model.LookupRequestId is { } requestId && Model.Error is null)
+{
+    <section class="notice"><h2>No saved result found for your account</h2><p>Request @requestId has no visible receipt yet. This does not prove that an earlier submission failed. Keep the original request and use its review page to retry.</p><a class="button" asp-page="/Replay" asp-route-scope="@Model.Scope.Key" asp-route-id="@Model.WorkId" asp-route-requestId="@requestId">Check again</a></section>
+}
+else if (Model.Review is { } review)
+{
+    <section class="card detail-card replay-card"><div class="card-heading"><h2>Review before submitting</h2><span class="muted">One work item</span></div>
+        <dl class="facts"><div><dt>Work ID</dt><dd>@review.WorkId</dd></div><div><dt>Expected version</dt><dd>@review.ExpectedVersion</dd></div><div><dt>Request ID</dt><dd>@review.RequestId</dd></div></dl>
+        <div class="replay-reason"><h2>Your reason</h2><p>@review.Reason</p></div>
+        <p class="explanation">The worker will process the original event. Payload, identity and destination remain unchanged. Submitting again with this request ID returns its saved result.</p>
+        <form method="post" asp-page-handler="Submit" class="replay-actions"><input type="hidden" name="ticket" value="@review.Ticket" />@if (!Model.RequestConflict) { <button class="button primary" type="submit">@(Model.Error is null ? "Submit replay request" : "Retry same request")</button> }<a class="button" asp-page="/Replay" asp-route-scope="@Model.Scope.Key" asp-route-id="@Model.WorkId" asp-route-requestId="@review.RequestId">Check saved status</a><a class="button" asp-page="/Work" asp-route-scope="@Model.Scope.Key" asp-route-id="@Model.WorkId">Cancel</a></form>
+    </section>
+}
+else if (Model.Preview is { } preview)
+{
+    <section class="card detail-card replay-card"><div class="card-heading"><code class="full-id">@preview.Work.Id</code><span class="status @preview.Work.State">@Display.State(preview.Work.State)</span></div><p class="explanation">@preview.Explanation</p>
+    @if (preview.Ticket is not null)
+    {
+        <form method="post" asp-page-handler="Review" class="replay-form"><input type="hidden" name="draft" value="@preview.Ticket" /><label for="reason">Why should this work be retried?</label><textarea id="reason" name="reason" rows="4" maxlength="1024" required placeholder="Describe what was corrected or why another attempt is appropriate."></textarea><p class="filter-hint">Required. Up to 1,024 UTF-8 bytes. The reason is stored with your operator identity; keep secrets out.</p><button class="button primary" type="submit">Review request</button></form>
+    }
+    </section>
+}

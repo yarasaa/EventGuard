@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/EventGuard.Hosting.Kafka/EventGuard.Hosting.Kafka.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <ProjectReference Include="../EventGuard.Kafka.CrashWorker/EventGuard.Kafka.CrashWorker.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/EventGuard.Kafka/EventGuard.Kafka.csproj" />
+    <ProjectReference Include="../../src/EventGuard.PostgreSql/EventGuard.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Runtime/EventGuard.Runtime.csproj" />
+    <ProjectReference Include="../../src/EventGuard.SqlServer/EventGuard.SqlServer.csproj" />
+    <ProjectReference Include="../EventGuard.Store.Conformance/EventGuard.Store.Conformance.csproj" />
+    <Compile Include="../EventGuard.PostgreSql.Tests/DatabaseFixture.cs" Link="Fixtures/PostgreSqlDatabaseFixture.cs" />
+    <Compile Include="../EventGuard.SqlServer.Tests/DatabaseFixture.cs" Link="Fixtures/SqlServerDatabaseFixture.cs" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <Compile Include="../../samples/EventGuard.Kafka.Sample/Contracts/FileUpdated.cs" Link="ApplicationContract/FileUpdated.cs" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

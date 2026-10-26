@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/template",
+  "author": "EventGuard contributors",
+  "classifications": ["Worker", "EventGuard"],
+  "identity": "EventGuard.Worker.CSharp",
+  "name": "EventGuard typed transactional worker",
+  "shortName": "eventguard-worker",
+  "sourceName": "EventGuardWorker",
+  "preferNameDirectory": true,
+  "tags": {"language": "C#", "type": "project"},
+  "symbols": {
+    "framework": {
+      "type": "parameter", "datatype": "choice", "defaultValue": "net10.0",
+      "replaces": "net10.0", "description": "Target framework (requires its runtime).",
+      "choices": [{"choice": "net8.0"}, {"choice": "net10.0"}]
+    }
+  },
+  "sources": [{"exclude": ["**/bin/**", "**/obj/**", "**/.template.config/**", "**/*.lock.json"]}]
+}

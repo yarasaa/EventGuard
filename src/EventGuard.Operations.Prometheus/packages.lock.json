@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "eventguard.core": {
+        "type": "Project"
+      },
+      "eventguard.operations": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Core": "[0.1.0-dev.28, )"
+        }
+      }
+    },
+    "net8.0": {
+      "eventguard.core": {
+        "type": "Project"
+      },
+      "eventguard.operations": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Core": "[0.1.0-dev.28, )"
+        }
+      }
+    }
+  }
+}

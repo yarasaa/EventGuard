@@ -1,0 +1,27 @@
+@page "/modules"
+@model ModulesModel
+@{ ViewData["Title"] = "Execution modules"; var kind = Model.View.Registration.Module; }
+<div class="page-heading"><div><div class="eyebrow">DURABLE EXECUTION</div><h1>@Model.View.Registration.Label</h1><p>@Model.View.Registration.Description</p></div></div>
+<div class="filters module-controls">
+<form method="get"><label>Module<select name="target">@foreach (var target in Model.Targets) { <option value="@target.Key" selected="@(target.Key == Model.View.Registration.Key)">@target.Label</option> }</select></label><button class="button" type="submit">Open module</button></form>
+<form method="get"><input type="hidden" name="target" value="@Model.View.Registration.Key" />
+    <label>State<select name="state"><option value="">All states</option>@foreach (var state in EventGuard.Operations.ModuleMetadata.States(kind)) { <option value="@state.Code" selected="@(state.Code == Model.View.State)">@state.Name</option> }</select></label>
+    @if (kind != EventGuard.Operations.ExecutionModule.ServiceLimit) { <label>Record ID<input name="id" value="@Model.View.Id" placeholder="Exact record UUID" /></label> }
+    <button class="button primary" type="submit">Apply filters</button><a class="button" href="/modules?target=@Model.View.Registration.Key">Reset</a>
+</form></div>
+<p class="muted">Metadata only · Ordered by stable record ID · Changes are made through your application's authorized control API.</p>
+<section class="card"><div class="table-scroll"><table class="module-table"><thead><tr><th>Record / state</th><th>@(kind == EventGuard.Operations.ExecutionModule.Snapshots ? "Batched / captured" : kind == EventGuard.Operations.ExecutionModule.ServiceLimit ? "Window calls / failures" : kind == EventGuard.Operations.ExecutionModule.ExternalActions ? "Submission attempts" : "Version")</th><th>What happens next</th><th>@(kind == EventGuard.Operations.ExecutionModule.ExternalActions ? "Next check (UTC)" : kind == EventGuard.Operations.ExecutionModule.ServiceLimit ? "Window started (UTC)" : "Recorded / updated (UTC)")</th></tr></thead><tbody>
+@foreach (var row in Model.View.Snapshot.Value.Items)
+{
+    <tr><td><strong>@row.State</strong>@if (row.Id != Guid.Empty) { <a class="work-id" asp-page="/Modules" asp-route-target="@Model.View.Registration.Key" asp-route-id="@row.Id">@row.Id</a> }</td><td>@(kind is EventGuard.Operations.ExecutionModule.Snapshots or EventGuard.Operations.ExecutionModule.ServiceLimit ? $"{row.Completed:N0} / {row.Total:N0}" : kind == EventGuard.Operations.ExecutionModule.ExternalActions ? row.Completed.ToString("N0") : row.Version.ToString("N0"))</td><td>@row.Guidance</td><td>@row.ScheduledAt.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)</td></tr>
+}
+@if (Model.View.Snapshot.Value.Items.Count == 0) { <tr><td colspan="4">No records match these filters.</td></tr> }
+</tbody></table></div></section>
+<nav class="pagination" aria-label="Record pages">@if (Model.View.Previous is { } previous) { <a class="button" href="@Model.Location(previous)">Previous</a> } @if (Model.View.Next is { } next) { <a class="button" href="@Model.Location(next)">Next</a> }</nav>
+
+@if (Model.View.Snapshot.Value.Steps.Count > 0)
+{
+<section class="card"><div class="card-header"><h2>Workflow steps</h2></div><div class="table-scroll"><table class="module-table"><thead><tr><th>Step</th><th>State</th><th>Job ID</th><th>Due (UTC)</th><th>Reason</th></tr></thead><tbody>
+@foreach (var step in Model.View.Snapshot.Value.Steps) { <tr><td>@step.Name</td><td>@step.State</td><td class="work-id">@step.JobId</td><td>@step.DueAt?.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)</td><td>@step.Reason</td></tr> }
+</tbody></table></div></section>
+}

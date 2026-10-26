@@ -1,0 +1,27 @@
+# Apply and wait for this Job before updating workers/dashboard. Use one migration identity.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: eventguard-worker-migrate-dev22
+  namespace: eventguard
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: migrate
+          image: YOUR_REGISTRY/eventguard-worker:0.1.0-dev.28
+          args: [migrate]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: '1', memory: 512Mi}
+          envFrom:
+            - configMapRef: {name: eventguard-worker-config}
+            - secretRef: {name: eventguard-worker-migration}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+      volumes: [{name: tmp, emptyDir: {sizeLimit: 64Mi}}]

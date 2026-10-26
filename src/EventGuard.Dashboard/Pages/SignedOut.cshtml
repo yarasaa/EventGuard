@@ -1,0 +1,5 @@
+@page "/signed-out"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@{ ViewData["Title"] = "Signed out"; }
+<div class="page-heading"><div><h1>You have signed out of this dashboard</h1><p>Your sessions in other applications will remain active.</p></div></div>
+<a class="button primary" href="/sign-in">Sign in again</a>

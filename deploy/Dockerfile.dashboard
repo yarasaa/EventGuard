@@ -1,0 +1,13 @@
+# Context is the published dashboard directory, not the repository.
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.12-noble@sha256:6a94333d37514e385650a3c81a55e5350b67253dbe136e9cf17e499c35606a8c
+# Keep PostgreSQL's GSSAPI native dependency available in the runtime image.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY . .
+RUN mkdir -p /var/lib/eventguard/keys && chgrp -R 0 /app /var/lib/eventguard && chmod -R g=u /app /var/lib/eventguard
+ENV ASPNETCORE_URLS=https://+:8443 DOTNET_EnableDiagnostics=0
+EXPOSE 8443
+USER 10001:0
+ENTRYPOINT ["dotnet", "EventGuard.Dashboard.dll"]

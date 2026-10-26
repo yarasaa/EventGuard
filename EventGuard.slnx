@@ -1,0 +1,54 @@
+<Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/EventGuard.LoadTests/EventGuard.LoadTests.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/EventGuard.MonitoredWorker.Sample/EventGuard.MonitoredWorker.Sample.csproj" />
+    <Project Path="samples/EventGuard.Dashboard.Sample/EventGuard.Dashboard.Sample.csproj" />
+    <Project Path="samples/EventGuard.Kafka.Sample/EventGuard.Kafka.Sample.csproj" />
+    <Project Path="samples/EventGuard.SqlServer.Sample/EventGuard.SqlServer.Sample.csproj" />
+    <Project Path="samples/EventGuard.Sample/EventGuard.Sample.csproj" />
+    <Project Path="samples/EventGuard.RabbitMq.Sample/EventGuard.RabbitMq.Sample.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/EventGuard.Hosting.Kafka/EventGuard.Hosting.Kafka.csproj" />
+    <Project Path="src/EventGuard.Hosting.RabbitMq/EventGuard.Hosting.RabbitMq.csproj" />
+    <Project Path="src/EventGuard.EntityFrameworkCore/EventGuard.EntityFrameworkCore.csproj" />
+    <Project Path="src/EventGuard.Hosting/EventGuard.Hosting.csproj" />
+    <Project Path="src/EventGuard.Operations.Prometheus/EventGuard.Operations.Prometheus.csproj" />
+    <Project Path="src/EventGuard.Operations.Replay.SqlServer/EventGuard.Operations.Replay.SqlServer.csproj" />
+    <Project Path="src/EventGuard.Operations.Replay.PostgreSql/EventGuard.Operations.Replay.PostgreSql.csproj" />
+    <Project Path="src/EventGuard.Operations/EventGuard.Operations.csproj" />
+    <Project Path="src/EventGuard.Operations.PostgreSql/EventGuard.Operations.PostgreSql.csproj" />
+    <Project Path="src/EventGuard.Operations.SqlServer/EventGuard.Operations.SqlServer.csproj" />
+    <Project Path="src/EventGuard.Dashboard/EventGuard.Dashboard.csproj" />
+
+    <Project Path="src/EventGuard.Kafka/EventGuard.Kafka.csproj" />
+    <Project Path="src/EventGuard.Core/EventGuard.Core.csproj" />
+    <Project Path="src/EventGuard.Runtime/EventGuard.Runtime.csproj" />
+    <Project Path="src/EventGuard.PostgreSql/EventGuard.PostgreSql.csproj" />
+    <Project Path="src/EventGuard.RabbitMq/EventGuard.RabbitMq.csproj" />
+    <Project Path="src/EventGuard.SqlServer/EventGuard.SqlServer.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EventGuard.ClusterWorker/EventGuard.ClusterWorker.csproj" />
+    <Project Path="tests/EventGuard.EntityFrameworkCore.Tests/EventGuard.EntityFrameworkCore.Tests.csproj" />
+    <Project Path="tests/EventGuard.Hosting.Tests/EventGuard.Hosting.Tests.csproj" />
+    <Project Path="tests/EventGuard.LoadTests.Tests/EventGuard.LoadTests.Tests.csproj" />
+    <Project Path="tests/EventGuard.Operations.Prometheus.Tests/EventGuard.Operations.Prometheus.Tests.csproj" />
+    <Project Path="tests/EventGuard.Operations.Tests/EventGuard.Operations.Tests.csproj" />
+    <Project Path="tests/EventGuard.Dashboard.Tests/EventGuard.Dashboard.Tests.csproj" />
+
+    <Project Path="tests/EventGuard.Kafka.Tests/EventGuard.Kafka.Tests.csproj" />
+    <Project Path="tests/EventGuard.Kafka.CrashWorker/EventGuard.Kafka.CrashWorker.csproj" />
+    <Project Path="tests/EventGuard.Architecture.Tests/EventGuard.Architecture.Tests.csproj" />
+    <Project Path="tests/EventGuard.Core.Tests/EventGuard.Core.Tests.csproj" />
+    <Project Path="tests/EventGuard.Store.Conformance/EventGuard.Store.Conformance.csproj" />
+    <Project Path="tests/EventGuard.CrashWorker/EventGuard.CrashWorker.csproj" />
+    <Project Path="tests/EventGuard.PostgreSql.Tests/EventGuard.PostgreSql.Tests.csproj" />
+    <Project Path="tests/EventGuard.RabbitMq.Tests/EventGuard.RabbitMq.Tests.csproj" />
+    <Project Path="tests/EventGuard.SqlServer.Tests/EventGuard.SqlServer.Tests.csproj" />
+    <Project Path="tests/EventGuard.SqlServer.CrashWorker/EventGuard.SqlServer.CrashWorker.csproj" />
+    <Project Path="tests/EventGuard.RabbitMq.CrashWorker/EventGuard.RabbitMq.CrashWorker.csproj" />
+  </Folder>
+</Solution>

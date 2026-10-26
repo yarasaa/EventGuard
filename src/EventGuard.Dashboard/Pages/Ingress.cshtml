@@ -1,0 +1,32 @@
+@page "/ingress"
+@model IngressModel
+@inject DashboardRecovery Recovery
+@{ ViewData["Title"] = "Incoming quarantine"; }
+<div class="page-heading"><div><div class="eyebrow">INGRESS</div><h1>Incoming quarantine</h1><p>Events held after an explicit mapping rejection.</p></div></div>
+@if (Model.Unavailable) { <section class="notice error" role="alert"><h2>Data is temporarily unavailable</h2><p>Please retry. This does not mean there are no quarantine records.</p></section> }
+else if (Model.Data is { } data)
+{
+    var state = data.Released is null ? "" : data.Released.Value ? "Released" : "Held";
+    <form method="get" class="filters">
+        <div class="field"><label for="scope">Consumer</label><select name="scope" id="scope">@foreach (var scope in Model.Scopes) { <option value="@scope.Key" selected="@(scope.Key == data.Scope.Key)">@scope.Label</option> }</select></div>
+        <div class="field"><label for="state">Status</label><select name="state" id="state"><option value="">All statuses</option><option value="Held" selected="@(data.Released == false)">Held</option><option value="Released" selected="@(data.Released == true)">Released</option></select></div>
+        <button class="button primary" type="submit">Apply filters</button>
+        <details class="advanced-filters" open="@(data.Id.HasValue)"><summary>More filters</summary><div class="filter-grid"><div class="field work-search"><label for="id">Quarantine ID (exact)</label><input id="id" name="id" value="@data.Id" maxlength="36" /></div></div></details>
+    </form>
+    <section class="card"><div class="card-heading"><h2>Held input <span class="count">@data.Snapshot.Value.Items.Count</span></h2><span class="muted">Metadata only · Newest first</span></div>
+    @if (data.Snapshot.Value.Items.Count == 0) { <div class="empty compact">No records match these filters.</div> }
+    else
+    { <div class="table-scroll"><table><thead><tr><th>Quarantine ID</th><th>Status</th><th>Reason</th><th>Policy</th><th>Created · UTC</th><th>Action</th></tr></thead><tbody>
+        @foreach (var item in data.Snapshot.Value.Items)
+        { <tr><td><code>@item.Id</code><small class="row-sub">Version @item.Version</small></td><td>@(item.ReleasedWorkId.HasValue ? "Released" : "Held")<small class="row-sub">@(item.DataRetained ? "Raw data retained" : "Raw data removed")</small></td><td>@item.ReasonCode</td><td>@item.KeyVersion<small class="row-sub">@item.FingerprintVersion</small></td><td>@Display.Time(item.CreatedAt)</td><td>
+            @if (item.ReleasedWorkId is { } work) { <a class="detail-link" asp-page="/Work" asp-route-scope="@data.Scope.Key" asp-route-id="@work">View work</a> }
+            else if (Recovery.CanRecover(User, "ingress", data.Scope.Key)) { <a class="detail-link" asp-page="/Recovery" asp-route-kind="ingress" asp-route-scope="@data.Scope.Key" asp-route-id="@item.Id">Review release</a> }
+            else { <span class="muted">Recovery permission required</span> }
+        </td></tr> }
+    </tbody></table></div> }
+    <div class="pagination"><span>Up to 25 records per page.</span><nav class="page-links" aria-label="Pagination"><a class="button" asp-page="/Ingress" asp-route-scope="@data.Scope.Key" asp-route-state="@state" asp-route-id="@data.Id">First page</a>
+        @if (data.PreviousCursor is not null) { <a class="button" rel="prev" asp-page="/Ingress" asp-route-scope="@data.Scope.Key" asp-route-state="@state" asp-route-id="@data.Id" asp-route-cursor="@data.PreviousCursor">← Previous page</a> }
+        @if (data.NextCursor is not null) { <a class="button" rel="next" asp-page="/Ingress" asp-route-scope="@data.Scope.Key" asp-route-state="@state" asp-route-id="@data.Id" asp-route-cursor="@data.NextCursor">Next page →</a> }
+    </nav></div></section>
+    <p class="data-note">Raw body, broker headers and source coordinates are never loaded by this screen. Release uses the normal identity, policy and deduplication rules.</p>
+}

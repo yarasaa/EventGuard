@@ -1,0 +1,17 @@
+@page "/workers/history"
+@model WorkerHistoryModel
+@using EventGuard.Operations
+@{ ViewData["Title"] = "Worker history"; var frame = Model.View.Snapshot; }
+<div class="page-heading"><div><div class="eyebrow">APPLICATION RUNTIME</div><h1>Worker history</h1><p>Observed rates from reporting instances, aggregated by worker group.</p></div><a class="button" asp-page="/Workers">Current workers</a></div>
+<form method="get" class="worker-filters card"><label>Worker group<select name="group">@foreach (var group in Model.Groups) { <option value="@group.Key" selected="@(frame.Group == group.Key)">@group.Label · @group.Component</option> }</select></label><label>Time window<select name="window"><option value="1h" selected="@(Model.View.Window == "1h")">Last hour</option><option value="6h" selected="@(Model.View.Window == "6h")">Last 6 hours</option><option value="24h" selected="@(Model.View.Window == "24h")">Last 24 hours</option></select></label><button type="submit" class="button primary">Apply filters</button></form>
+@if (frame.Availability == FleetAvailability.Disabled) { <section class="notice"><h2>History is not configured</h2><p>Configure a supported monitoring source and worker groups to view their recorded rates.</p></section> }
+else if (frame.Availability == FleetAvailability.Unavailable) { <section class="notice"><h2>History temporarily unavailable</h2><p>No complete response could be read from the monitoring source. Retry shortly. A missing chart does not mean throughput is zero.</p></section> }
+else
+{
+    <p class="data-note">@frame.From.ToString("yyyy-MM-dd HH:mm:ss") → @frame.Until.ToString("yyyy-MM-dd HH:mm:ss") UTC · @frame.StepSeconds-second intervals · 60-second rate window</p>
+    <div class="history-grid">@foreach (var chart in Model.View.Charts) { <section class="card history-chart"><div class="card-heading"><h2>@chart.Label</h2><span class="muted">0–@chart.Maximum / s</span></div>
+        @if (chart.Available == 0) { <p class="empty">No samples in this window.</p> }
+        else { <svg viewBox="0 0 488 144" role="img" aria-label="@chart.Label: @chart.Available of @chart.Total samples, peak @chart.Maximum per second"><title>@chart.Label per second; gaps indicate missing data</title><path class="history-axis" d="M 8 12 L 8 132 L 480 132" /><path class="history-line" d="@chart.Path" /></svg> }
+        <p class="data-note">@chart.Available / @chart.Total samples available · Each chart has its own scale</p></section> }</div>
+}
+<section class="notice"><h2>Reading these charts</h2><p>Gaps represent missing samples, warm-up or unavailable targets. Aggregates can decrease when only some instances report. Compare current inventory with the configured expected count before interpreting a lower rate.</p><p>These are observed runtime outcomes, not unique business throughput or a capacity benchmark. Retention is controlled by your monitoring source. Charts use a bounded query and a 15-second cache.</p></section>

@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "EventGuard.Core": {
+        "type": "Direct",
+        "requested": "[0.1.0-dev.28, )",
+        "resolved": "0.1.0-dev.28",
+        "contentHash": "EdXYkomip8HjCdFG+hXqICMiAZOGdUIDxqVkq/DSpoY0tsINY5hJWOTNKagoIA1l+Ek3ZZ5eyeHZ0eHtNy1yzg=="
+      },
+      "EventGuard.Operations.PostgreSql": {
+        "type": "Direct",
+        "requested": "[0.1.0-dev.28, )",
+        "resolved": "0.1.0-dev.28",
+        "contentHash": "V8VPzxcxU4EELLLFwkpAbrTf4peAOGPByWQLp/F3jEgW1jmOU5X9LvDUwU7r9M0zNIMVI56lo4hTmEMZWTRKcg==",
+        "dependencies": {
+          "EventGuard.Operations": "0.1.0-dev.28",
+          "Npgsql": "10.0.3"
+        }
+      },
+      "EventGuard.PostgreSql": {
+        "type": "Direct",
+        "requested": "[0.1.0-dev.28, )",
+        "resolved": "0.1.0-dev.28",
+        "contentHash": "TH3j0Wk3+Wg9oLlb7vkmewzW6UAgYCp5HlBflLclfrmyPDFw0zswtsD2tEXJs2+RLIKuKQiyUS8YE+G5LJwpgg==",
+        "dependencies": {
+          "EventGuard.Core": "0.1.0-dev.28",
+          "Npgsql": "10.0.3"
+        }
+      },
+      "EventGuard.RabbitMq": {
+        "type": "Direct",
+        "requested": "[0.1.0-dev.28, )",
+        "resolved": "0.1.0-dev.28",
+        "contentHash": "hGMLCf+ZuF4OvQLVWCjfiT7/zMSN8uox14NtU+7+0iJ/FB3D7r9HLppLEvjfVpAt2ifsUd2wnu2wmE0K89xHtw==",
+        "dependencies": {
+          "EventGuard.Core": "0.1.0-dev.28",
+          "RabbitMQ.Client": "7.2.2"
+        }
+      },
+      "EventGuard.Runtime": {
+        "type": "Direct",
+        "requested": "[0.1.0-dev.28, )",
+        "resolved": "0.1.0-dev.28",
+        "contentHash": "bB20G4m81imnMCRE6LJABxKwUb7RT8C3pYQoFYMdTMH8EryONPOjNzz0Zf9o+FWIRxqc9zXJiVVjt/Xtu9zLWA==",
+        "dependencies": {
+          "EventGuard.Core": "0.1.0-dev.28"
+        }
+      },
+      "Npgsql": {
+        "type": "Direct",
+        "requested": "[10.0.3, )",
+        "resolved": "10.0.3",
+        "contentHash": "7nb5YzXuvWWJxB0J8DiyL3we+X4FOctZrt0fIBnucOIaIevFEEwGQVZKtiu9olXdlNAK1eNgqSral6r/jlhI4w=="
+      },
+      "RabbitMQ.Client": {
+        "type": "Direct",
+        "requested": "[7.2.2, )",
+        "resolved": "7.2.2",
+        "contentHash": "k4b6RnTXpLbsF96V93ooNYxgPMnoA2tEm24B6AXNJr1mG8wwNYdA1XJtgU66L5xqeGyveS7SJriRzlX3cbqQNA=="
+      },
+      "EventGuard.Operations": {
+        "type": "Transitive",
+        "resolved": "0.1.0-dev.28",
+        "contentHash": "BLcAVEqdKDvnV+jpapYIY+ZaBasxX02yggnXojpN1MJHMldfZWeD6JHuX+MTAryV/tVJRvjkKtnVYRmYjS6/pA==",
+        "dependencies": {
+          "EventGuard.Core": "0.1.0-dev.28"
+        }
+      }
+    },
+    "net8.0": {
+      "EventGuard.Core": {
+        "type": "Direct",
+        "requested": "[0.1.0-dev.28, )",
+        "resolved": "0.1.0-dev.28",
+        "contentHash": "EdXYkomip8HjCdFG+hXqICMiAZOGdUIDxqVkq/DSpoY0tsINY5hJWOTNKagoIA1l+Ek3ZZ5eyeHZ0eHtNy1yzg=="
+      },
+      "EventGuard.Operations.PostgreSql": {
+        "type": "Direct",
+        "requested": "[0.1.0-dev.28, )",
+        "resolved": "0.1.0-dev.28",
+        "contentHash": "V8VPzxcxU4EELLLFwkpAbrTf4peAOGPByWQLp/F3jEgW1jmOU5X9LvDUwU7r9M0zNIMVI56lo4hTmEMZWTRKcg==",
+        "dependencies": {
+          "EventGuard.Operations": "0.1.0-dev.28",
+          "Npgsql": "8.0.9"
+        }
+      },
+      "EventGuard.PostgreSql": {
+        "type": "Direct",
+        "requested": "[0.1.0-dev.28, )",
+        "resolved": "0.1.0-dev.28",
+        "contentHash": "TH3j0Wk3+Wg9oLlb7vkmewzW6UAgYCp5HlBflLclfrmyPDFw0zswtsD2tEXJs2+RLIKuKQiyUS8YE+G5LJwpgg==",
+        "dependencies": {
+          "EventGuard.Core": "0.1.0-dev.28",
+          "Npgsql": "8.0.9"
+        }
+      },
+      "EventGuard.RabbitMq": {
+        "type": "Direct",
+        "requested": "[0.1.0-dev.28, )",
+        "resolved": "0.1.0-dev.28",
+        "contentHash": "hGMLCf+ZuF4OvQLVWCjfiT7/zMSN8uox14NtU+7+0iJ/FB3D7r9HLppLEvjfVpAt2ifsUd2wnu2wmE0K89xHtw==",
+        "dependencies": {
+          "EventGuard.Core": "0.1.0-dev.28",
+          "RabbitMQ.Client": "7.2.2"
+        }
+      },
+      "EventGuard.Runtime": {
+        "type": "Direct",
+        "requested": "[0.1.0-dev.28, )",
+        "resolved": "0.1.0-dev.28",
+        "contentHash": "bB20G4m81imnMCRE6LJABxKwUb7RT8C3pYQoFYMdTMH8EryONPOjNzz0Zf9o+FWIRxqc9zXJiVVjt/Xtu9zLWA==",
+        "dependencies": {
+          "EventGuard.Core": "0.1.0-dev.28"
+        }
+      },
+      "Npgsql": {
+        "type": "Direct",
+        "requested": "[8.0.9, )",
+        "resolved": "8.0.9",
+        "contentHash": "H7O9NrvSO+BaojUOK59YmSOi7+RabnBoNPw1F7NgtZhw5uBeAA3bCjTH2VjgacUVHe8K1asPyj/a/mnhJ/e1yA=="
+      },
+      "RabbitMQ.Client": {
+        "type": "Direct",
+        "requested": "[7.2.2, )",
+        "resolved": "7.2.2",
+        "contentHash": "k4b6RnTXpLbsF96V93ooNYxgPMnoA2tEm24B6AXNJr1mG8wwNYdA1XJtgU66L5xqeGyveS7SJriRzlX3cbqQNA=="
+      },
+      "EventGuard.Operations": {
+        "type": "Transitive",
+        "resolved": "0.1.0-dev.28",
+        "contentHash": "BLcAVEqdKDvnV+jpapYIY+ZaBasxX02yggnXojpN1MJHMldfZWeD6JHuX+MTAryV/tVJRvjkKtnVYRmYjS6/pA==",
+        "dependencies": {
+          "EventGuard.Core": "0.1.0-dev.28"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,101 @@
+# Example only. Replace image, namespace, scopes, hosts and provision the referenced secrets/PVC before apply.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eventguard-dashboard-config
+  namespace: eventguard
+data:
+  appsettings.Production.json: |
+    {
+      "Dashboard": {
+        "Provider": "PostgreSql", "Schema": "eventguard_worker", "StoreId": "products-production",
+        "ApplicationLabel": "Product projection", "EnvironmentLabel": "Production",
+        "AllowedHosts": ["eventguard.example.com", "eventguard-dashboard.eventguard.svc"],
+        "MonitoringEnabled": true,
+        "KeyRingPath": "/var/lib/eventguard/keys",
+        "KeyProtectionCertificatePath": "/run/key-protection/certificate.pfx",
+        "Scopes": [{ "Key": "products", "Label": "Product projection", "Tenant": "production", "Consumer": "product-projection", "Source": "catalog", "EventType": "product.changed", "Operation": "Update product projection", "DataFields": [{"Label": "Product ID", "Pointer": "/productId"}, {"Label": "Revision", "Pointer": "/revision"}] }]
+      }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eventguard-dashboard
+  namespace: eventguard
+  labels: {app: eventguard-dashboard}
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: eventguard-dashboard-tls
+spec:
+  selector: {app: eventguard-dashboard}
+  ports: [{name: https, port: 8443, targetPort: https}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventguard-dashboard
+  namespace: eventguard
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: eventguard-dashboard}}
+  template:
+    metadata:
+      labels: {app: eventguard-dashboard}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: dashboard
+          image: YOUR_REGISTRY/eventguard-dashboard:0.1.0-dev.28
+          ports: [{name: https, containerPort: 8443}]
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: '1', memory: 512Mi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          envFrom: [{secretRef: {name: eventguard-dashboard-settings}}]
+          env:
+            - {name: ASPNETCORE_ENVIRONMENT, value: Production}
+            - {name: Kestrel__Certificates__Default__Path, value: /run/tls/tls.crt}
+            - {name: Kestrel__Certificates__Default__KeyPath, value: /run/tls/tls.key}
+            - name: Dashboard__MetricsToken
+              valueFrom: {secretKeyRef: {name: eventguard-metrics, key: token}}
+          startupProbe:
+            httpGet: {path: /health/live, port: https, scheme: HTTPS, httpHeaders: [{name: Host, value: eventguard-dashboard.eventguard.svc}]}
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet: {path: /health/live, port: https, scheme: HTTPS, httpHeaders: [{name: Host, value: eventguard-dashboard.eventguard.svc}]}
+            periodSeconds: 10
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet: {path: /health/ready, port: https, scheme: HTTPS, httpHeaders: [{name: Host, value: eventguard-dashboard.eventguard.svc}]}
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 2
+          volumeMounts:
+            - {name: config, mountPath: /app/appsettings.Production.json, subPath: appsettings.Production.json, readOnly: true}
+            - {name: tls, mountPath: /run/tls, readOnly: true}
+            - {name: key-protection, mountPath: /run/key-protection, readOnly: true}
+            - {name: keys, mountPath: /var/lib/eventguard/keys}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: config, configMap: {name: eventguard-dashboard-config}}
+        - {name: tls, secret: {secretName: eventguard-dashboard-tls}}
+        - {name: key-protection, secret: {secretName: eventguard-key-protection}}
+        - {name: keys, persistentVolumeClaim: {claimName: eventguard-dashboard-keys}}
+        - {name: tmp, emptyDir: {sizeLimit: 64Mi}}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eventguard-dashboard-ingress
+  namespace: eventguard
+spec:
+  podSelector: {matchLabels: {app: eventguard-dashboard}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: openshift-ingress}}
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: openshift-user-workload-monitoring}}
+      ports: [{protocol: TCP, port: 8443}]

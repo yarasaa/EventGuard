@@ -1,0 +1,53 @@
+@page "/outbox"
+@model OutboxModel
+@inject DashboardOptions Settings
+@inject DashboardOutboxReplays Replays
+@{ ViewData["Title"] = Model.Quarantine ? "Quarantine" : "Outbox"; }
+<div class="page-heading"><div><div class="eyebrow">OUTGOING EVENTS</div><h1>@ViewData["Title"]</h1><p>@(Model.Quarantine ? "Inspect stored envelopes isolated by validation." : "Track publication attempts and transport acceptance.")</p></div>
+@if (Model.Data is { } current) { <a class="button" href="@OutboxFilterInput.Location(current.Scope.Key, current.State, current.Filters, quarantine: Model.Quarantine)">↻ Refresh</a> }</div>
+@if (Model.Unavailable)
+{
+    <section class="notice error" role="alert"><h2>Data is temporarily unavailable</h2><p>This does not mean there are no records. Please try again.</p></section>
+}
+else if (Model.Data is { } data)
+{
+    <div class="context-row"><span class="context-label">PRODUCER</span><strong>@data.Scope.Label</strong><span class="context-source">@data.Scope.Producer</span></div>
+    @if (Settings.BulkReplayEnabled && Replays.CanReplay(User, data.Scope)) { <div class="replay-actions"><a class="button" asp-page="/BulkReplay" asp-route-kind="outbox" asp-route-scope="@data.Scope.Key">Prepare bulk replay</a></div> }
+    <form method="get" class="filters">
+        <div class="field"><label for="scope">Producer</label><select name="scope" id="scope">@foreach (var scope in Model.Scopes) { <option value="@scope.Key" selected="@(scope.Key == data.Scope.Key)">@scope.Label</option> }</select></div>
+        @if (!Model.Quarantine)
+        { <div class="field"><label for="state">Status</label><select name="state" id="state"><option value="">All statuses</option>@foreach (var state in Enum.GetValues<OutboxState>()) { <option value="@state" selected="@(state == data.State)">@OutboxDisplay.State(state)</option> }</select></div> }
+        <button class="button primary" type="submit">Apply filters</button>
+        <a class="reset-filter" href="@OutboxFilterInput.Location(data.Scope.Key, null, new(), quarantine: Model.Quarantine)">Clear filters</a>
+        <div class="read-time"><span class="small-dot"></span>Last read<strong>@Display.Time(data.Snapshot.ReadFinishedAt) UTC</strong></div>
+        <details class="advanced-filters" open="@(data.Filters != new EventGuard.Operations.OutboxFilters())"><summary>More filters</summary><div class="filter-grid">
+            <div class="field work-search"><label for="intentId">Intent ID (exact)</label><input id="intentId" name="intentId" value="@data.Filters.IntentId" maxlength="36" placeholder="Full intent UUID" /></div>
+            <div class="field"><label for="from">Created from · UTC (inclusive)</label><input type="datetime-local" id="from" name="from" value="@FilterInput.Time(data.Filters.CreatedFrom)" step="1" /></div>
+            <div class="field"><label for="until">Created before · UTC (exclusive)</label><input type="datetime-local" id="until" name="until" value="@FilterInput.Time(data.Filters.CreatedUntil)" step="1" /></div>
+            <div class="field"><label for="minimumAttempts">Minimum attempts</label><input type="number" id="minimumAttempts" name="minimumAttempts" value="@data.Filters.MinimumAttempts" min="0" max="2147483647" placeholder="Any" /></div>
+            <div class="field"><label for="uncertain">Delivery uncertainty</label><select id="uncertain" name="uncertain"><option value="">Any</option><option value="yes" selected="@(data.Filters.DeliveryUncertain == true)">Possible earlier delivery</option><option value="no" selected="@(data.Filters.DeliveryUncertain == false)">No uncertainty recorded</option></select></div>
+            <div class="field"><label for="replayed">Replay history</label><select id="replayed" name="replayed"><option value="">Any</option><option value="yes" selected="@(data.Filters.Replayed == true)">Replayed</option><option value="no" selected="@(data.Filters.Replayed == false)">Never replayed</option></select></div>
+        </div><p class="filter-hint">Filters apply together within the selected producer. Dates refer to intent creation, including in the quarantine view.</p></details>
+    </form>
+    <section class="card"><div class="card-heading"><h2>@(Model.Quarantine ? "Quarantined intents" : "Outgoing intents") <span class="count">@data.Snapshot.Value.Items.Count</span></h2><span class="muted">This page · Newest first</span></div>
+    @if (data.Snapshot.Value.Items.Count == 0)
+    { <div class="empty"><h3>No records match these filters</h3><p>Change the producer or filters to view other outgoing events.</p></div> }
+    else
+    {
+        <div class="table-scroll"><table><thead><tr><th>Intent ID</th><th>Status</th><th>Target binding</th><th>Attempts</th><th>Created · UTC</th><th>History</th></tr></thead><tbody>
+        @foreach (var item in data.Snapshot.Value.Items)
+        {
+            <tr><td><a class="work-id" asp-page="/OutboxDetail" asp-route-scope="@data.Scope.Key" asp-route-id="@item.Id" asp-route-returnTo="@data.CurrentCursor">@item.Id.ToString("D")[..13]…</a><small class="row-sub">Version @item.Version</small></td>
+            <td><span class="status @item.State"><span class="small-dot"></span>@OutboxDisplay.State(item.State)</span>@if (item.DeliveryUncertain) { <small class="row-sub uncertainty">Possible earlier delivery</small> }</td>
+            <td><span class="binding-name">@item.Binding</span><small class="row-sub">@item.Transport</small></td><td>@item.AttemptCount</td><td>@Display.Time(item.CreatedAt)</td>
+            <td><a class="detail-link" asp-page="/OutboxDetail" asp-route-scope="@data.Scope.Key" asp-route-id="@item.Id" asp-route-returnTo="@data.CurrentCursor">View details ↗</a></td></tr>
+        }
+        </tbody></table></div>
+    }
+    <div class="pagination"><span>Up to 25 records per page.</span><nav class="page-links" aria-label="Pagination">
+        <a class="button" href="@OutboxFilterInput.Location(data.Scope.Key, data.State, data.Filters, quarantine: Model.Quarantine)">First page</a>
+        @if (data.PreviousCursor is not null) { <a class="button" rel="prev" href="@OutboxFilterInput.Location(data.Scope.Key, data.State, data.Filters, data.PreviousCursor, Model.Quarantine)">← Previous page</a> } else { <span class="button disabled" aria-disabled="true">← Previous page</span> }
+        @if (data.NextCursor is not null) { <a class="button" href="@OutboxFilterInput.Location(data.Scope.Key, data.State, data.Filters, data.NextCursor, Model.Quarantine)">Next page →</a> } else { <span class="button disabled" aria-disabled="true">Next page →</span> }
+    </nav></div></section>
+    <div class="footnote"><span aria-hidden="true">ⓘ</span><p>Published means transport acceptance, not consumer completion. Earlier delivery uncertainty remains visible after a later success. Each page is a separate read.</p></div>
+}

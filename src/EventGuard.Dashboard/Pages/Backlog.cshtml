@@ -1,0 +1,21 @@
+@page "/backlog"
+@model BacklogModel
+@{ ViewData["Title"] = "Backlog"; }
+<div class="page-heading"><div><div class="eyebrow">DURABLE STORE</div><h1>Backlog</h1><p>Unfinished work and terminal states that may need attention.</p></div><a class="button" asp-page="/Backlog" asp-route-target="@Model.View.Target.Key">↻ Refresh</a></div>
+<form method="get" class="worker-filters card"><label>Consumer or producer<select name="target" aria-label="Consumer or producer">@foreach (var target in Model.Targets) { <option value="@target.Key" selected="@(target.Key == Model.View.Target.Key)">@target.Label · @target.Kind</option> }</select></label><button class="button primary" type="submit">Apply</button></form>
+@if (!Model.View.Available)
+{
+    <section class="notice"><h2>Backlog data unavailable</h2><p>The read could not be completed within its budget. This does not mean the backlog is empty. Please try again.</p></section>
+}
+else
+{
+    <section class="card"><div class="card-heading"><h2>@Model.View.Target.Label</h2><span class="muted">Read · @Display.Time(Model.View.Snapshot!.ReadFinishedAt) UTC</span></div>
+    <div class="table-scroll"><table><thead><tr><th>State</th><th>Records</th><th>Oldest creation · UTC</th><th></th></tr></thead><tbody>
+    @foreach (var row in Model.View.Snapshot!.Value.Buckets)
+    {
+        <tr><td><strong>@row.State</strong></td><td>@Model.Count(row)</td><td>@(row.OldestCreatedAt is { } oldest ? Display.Time(oldest) : "—")</td><td><a class="button" href="@Model.ListUrl(row)">View items →</a></td></tr>
+    }
+    </tbody></table></div></section>
+    <p class="data-note">Counts are capped at @Model.View.Snapshot.Value.CountLimit.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) per state. “At least” is a lower bound, not an estimate. Reads share a 15-second cache for this scope.</p>
+}
+<section class="notice"><h2>State counts are not a scheduling forecast</h2><p>Pending and RetryScheduled may include future or expired work awaiting evaluation. Processing or Publishing can include abandoned leases. Oldest creation time includes time before delays and retries; it is not time waiting for a free worker.</p><p>Completed consumer work and Published outgoing intents are excluded. DeadLetter, Expired and Quarantined are terminal states shown for inspection, not active queue depth. Changes after the read are reflected on a later refresh. No drain-time estimate or empty-queue guarantee is derived from worker metrics.</p></section>

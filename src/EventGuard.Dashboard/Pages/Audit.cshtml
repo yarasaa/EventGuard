@@ -1,0 +1,16 @@
+@page "/audit/{kind}/{scope}"
+@model AuditModel
+@{ ViewData["Title"] = "Audit log"; var data = Model.Data; }
+<div class="page-heading"><div><div class="eyebrow">OPERATIONS</div><h1>Audit log</h1><p>Saved operator requests for @data.Target.Label.</p></div></div>
+<nav class="page-links" aria-label="Audit scope">@foreach (var target in Model.Targets) { <a class="button" asp-page="/Audit" asp-route-kind="@target.Kind" asp-route-scope="@target.Key">@target.Label · @target.Kind</a> }</nav>
+<form method="get" class="filters"><div class="field"><label for="from">From (UTC, inclusive)</label><input id="from" name="from" type="datetime-local" step="1" value="@data.From" required /></div><div class="field"><label for="until">Until (UTC, exclusive)</label><input id="until" name="until" type="datetime-local" step="1" value="@data.Until" required /></div><button class="button primary" type="submit">Apply filters</button></form>
+<section class="card"><div class="card-heading"><h2>Request history</h2><a class="button" asp-page="/Audit" asp-page-handler="Export" asp-route-kind="@data.Target.Kind" asp-route-scope="@data.Target.Key" asp-route-from="@data.From" asp-route-until="@data.Until" asp-route-cursor="@data.CurrentCursor">Export this page · JSONL</a></div>
+@if (data.Snapshot.Value.Items.Count == 0) { <p class="empty">No saved requests in this time window.</p> }
+else { <div class="table-scroll"><table class="audit-table"><thead><tr><th>Recorded (UTC)</th><th>Operation / request</th><th>Subject</th><th>Actor / reason</th><th>Outcome</th></tr></thead><tbody>
+@foreach (var row in data.Snapshot.Value.Items) { <tr><td>@row.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</td><td>@AuditModel.Operation(row.Kind)<small class="mono">@row.RequestId</small></td><td class="mono">@(row.SubjectId?.ToString() ?? "Batch or retention")</td><td><span class="mono">@row.Actor</span><small>@row.Reason</small></td><td>@row.Outcome @if (row.AcknowledgePossibleDuplicate) { <small>Possible duplicate acknowledged</small> }</td></tr> }
+</tbody></table></div> }
+<div class="pagination"><span>Up to 100 requests per page · Maximum window: 31 days</span><nav class="page-links" aria-label="Pagination"><a class="button" asp-page="/Audit" asp-route-kind="@data.Target.Kind" asp-route-scope="@data.Target.Key" asp-route-from="@data.From" asp-route-until="@data.Until">First page</a>
+@if (data.PreviousCursor is not null) { <a class="button" rel="prev" asp-page="/Audit" asp-route-kind="@data.Target.Kind" asp-route-scope="@data.Target.Key" asp-route-from="@data.From" asp-route-until="@data.Until" asp-route-cursor="@data.PreviousCursor">← Previous page</a> }
+@if (data.NextCursor is not null) { <a class="button" rel="next" asp-page="/Audit" asp-route-kind="@data.Target.Kind" asp-route-scope="@data.Target.Key" asp-route-from="@data.From" asp-route-until="@data.Until" asp-route-cursor="@data.NextCursor">Next page →</a> }
+</nav></div></section>
+<p class="data-note">A prepared bulk plan is not proof that every member ran. Member outcomes appear as individual replay requests. Reads and exports may include late commits; they are not a point-in-time database archive. Message bodies, headers and fingerprints are excluded.</p>

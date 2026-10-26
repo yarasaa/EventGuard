@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/EventGuard.Hosting.Kafka/EventGuard.Hosting.Kafka.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Hosting.RabbitMq/EventGuard.Hosting.RabbitMq.csproj" />
+    <ProjectReference Include="../../src/EventGuard.EntityFrameworkCore/EventGuard.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Hosting/EventGuard.Hosting.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Operations.Replay.SqlServer/EventGuard.Operations.Replay.SqlServer.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Operations.Replay.PostgreSql/EventGuard.Operations.Replay.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Operations/EventGuard.Operations.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Operations.PostgreSql/EventGuard.Operations.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Operations.SqlServer/EventGuard.Operations.SqlServer.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Dashboard/EventGuard.Dashboard.csproj" />
+
+    <ProjectReference Include="../../src/EventGuard.Kafka/EventGuard.Kafka.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Core/EventGuard.Core.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Runtime/EventGuard.Runtime.csproj" />
+    <ProjectReference Include="../../src/EventGuard.PostgreSql/EventGuard.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/EventGuard.RabbitMq/EventGuard.RabbitMq.csproj" />
+    <ProjectReference Include="../../src/EventGuard.SqlServer/EventGuard.SqlServer.csproj" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

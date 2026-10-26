@@ -1,0 +1,8 @@
+# OpenShift injects service-ca.crt into this ConfigMap for the re-encrypt Route.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eventguard-service-ca
+  namespace: eventguard
+  annotations:
+    service.beta.openshift.io/inject-cabundle: 'true'

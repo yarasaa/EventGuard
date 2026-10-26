@@ -1,0 +1,53 @@
+@page "/recovery/{kind}/{scope}/{id:guid}"
+@model RecoveryModel
+@{ ViewData["Title"] = "Quarantine recovery"; }
+@if (Model.Kind == "ingress") { <a class="back" asp-page="/Ingress" asp-route-scope="@Model.ScopeKey">← Back to incoming quarantine</a> }
+else { <a class="back" asp-page="/OutboxDetail" asp-route-scope="@Model.ScopeKey" asp-route-id="@Model.Id">← Back to outgoing event</a> }
+<div class="page-heading"><div><div class="eyebrow">@Model.Label</div><h1>@(Model.Kind == "ingress" ? "Release held input" : "Restore original envelope")</h1><p>Review a bounded recovery request before submitting it.</p></div><span class="read-only">Recovery operator</span></div>
+@if (Model.Error is not null) { <section class="notice error" role="alert"><h2>Request unavailable</h2><p>@Model.Error</p></section> }
+@if (Model.Receipt is { } receipt)
+{
+    <section class="card detail-card"><div class="card-heading"><h2>@receipt.Status</h2><span class="muted">Saved request result</span></div>
+        <dl class="facts"><div><dt>Request ID</dt><dd>@receipt.RequestId</dd></div><div><dt>Record ID</dt><dd>@Model.Id</dd></div><div><dt>Recorded version</dt><dd>@receipt.Version</dd></div><div><dt>Saved · UTC</dt><dd>@Display.Time(receipt.CreatedAt)</dd></div><div><dt>Possible duplicate acknowledged</dt><dd>@(receipt.AcknowledgePossibleDuplicate ? "Yes" : "No")</dd></div></dl>
+        <div class="replay-reason"><h2>Your reason</h2><p>@receipt.Reason</p></div>
+        @if (receipt.WorkId is { } work) { <a class="button" asp-page="/Work" asp-route-scope="@Model.ScopeKey" asp-route-id="@work">View work</a> }
+        <p class="data-note">Accepted recovery queues work for its normal worker. It does not confirm business processing or delivery. Refused requests do not change the held record.</p>
+    </section>
+}
+else if (Model.LookupRequestId is { } requestId && Model.Error is null)
+{
+    <section class="notice"><h2>No saved result found for your account</h2><p>Request @requestId has no visible receipt yet. This does not prove the earlier request failed. Keep its original review form.</p><a class="button" asp-page="/Recovery" asp-route-kind="@Model.Kind" asp-route-scope="@Model.ScopeKey" asp-route-id="@Model.Id" asp-route-requestId="@requestId">Check again</a></section>
+}
+else if (Model.Review is { } review)
+{
+    <section class="card detail-card replay-card"><div class="card-heading"><h2>Review before submitting</h2><span class="muted">One record</span></div>
+        <dl class="facts"><div><dt>Request ID</dt><dd>@review.RequestId</dd></div><div><dt>Record ID</dt><dd>@review.Id</dd></div><div><dt>Expected version</dt><dd>@review.Version</dd></div></dl>
+        <div class="replay-reason"><h2>Your recovery manifest</h2><pre class="recovery-manifest">@review.Manifest</pre><h2>Your reason</h2><p>@review.Reason</p></div>
+        @if (review.AcknowledgePossibleDuplicate) { <div class="delivery-notice"><strong>Possible duplicate acknowledged</strong><p>Another publication can deliver this event more than once.</p></div> }
+        <p class="explanation">The database rechecks the record and saves the outcome atomically. Submitting the same request again returns that saved result.</p>
+        <form method="post" asp-page-handler="Submit" class="replay-actions"><input type="hidden" name="ticket" value="@review.Ticket" />
+            @if (!Model.RequestConflict) { <button class="button primary" type="submit">@(Model.Error is null ? "Submit recovery request" : "Retry same request")</button> }
+            <a class="button" asp-page="/Recovery" asp-route-kind="@Model.Kind" asp-route-scope="@Model.ScopeKey" asp-route-id="@Model.Id" asp-route-requestId="@review.RequestId">Check saved status</a>
+        </form>
+    </section>
+}
+else if (Model.Preview is { } preview)
+{
+    <section class="card detail-card replay-card"><div class="card-heading"><code class="full-id">@Model.Id</code><span class="muted">Version @preview.Version</span></div><p class="explanation">@preview.Explanation</p>
+    @if (preview.Draft is not null)
+    {
+        <form method="post" asp-page-handler="Review" class="replay-form"><input type="hidden" name="draft" value="@preview.Draft" />
+            <label for="manifest">Recovery manifest · JSON</label><textarea id="manifest" name="manifest" rows="8" maxlength="4096" spellcheck="false" required></textarea>
+            <p class="filter-hint">Up to 4 KiB of JSON and 2 KiB of payload. Payload uses base64 to preserve exact bytes. Large recoveries use the authorized Operations command port.</p>
+            <details><summary>Manifest fields</summary>
+            @if (Model.Kind == "ingress") { <p class="data-note">Required: messageId, businessKey, payloadBase64. For a custom fingerprint policy, also supply canonicalFingerprint from the application's canonical content. Optional: notBefore, expiresAt, correlationId. The existing key and fingerprint policy versions remain pinned.</p> }
+            else { <p class="data-note">Required: messageId, payloadBase64, transport, connection, configurationVersion, address. Restore the exact original routingKey, contentType, headers and notBefore when present. Intent and producer identity are pinned by this screen.</p> }
+            </details>
+            <label for="reason">Why is this recovery appropriate?</label><textarea id="reason" name="reason" rows="3" maxlength="1024" required></textarea>
+            <p class="filter-hint">Required. Up to 1,024 UTF-8 bytes. Stored with your operator identity; keep secrets out.</p>
+            @if (Model.Kind == "outbox") { <label class="acknowledgement"><input type="checkbox" name="acknowledgePossibleDuplicate" value="true" required="@preview.DeliveryUncertain" /> I acknowledge that another publication may create a duplicate.</label> }
+            <button class="button primary" type="submit">Review request</button>
+        </form>
+    }
+    </section>
+}

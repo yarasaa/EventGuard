@@ -1,0 +1,82 @@
+using System.Text.Json;
+using EventGuard;
+using EventGuard.Hosting;
+using EventGuard.PostgreSql;
+using EventGuard.Runtime;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Npgsql;
+
+var connection = Environment.GetEnvironmentVariable("EVENTGUARD_TEST_CONNECTION")!;
+var target = new NpgsqlConnectionStringBuilder(connection);
+if (target.Host != "127.0.0.1" || target.Port != 55432 || !target.Database!.StartsWith("eventguard_test_model_"))
+    throw new InvalidOperationException("Disposable onboarding database required.");
+await using var data = NpgsqlDataSource.Create(connection);
+var store = new PostgreSqlWorkStore(data);
+var restored = args.SequenceEqual(new[] { "verify-restored" });
+if (!restored)
+{
+    await store.InitializeAsync();
+    await using var ddl = data.CreateCommand("CREATE TABLE documents(id text PRIMARY KEY, revision bigint NOT NULL, title text NOT NULL); CREATE TABLE document_effects(work_id uuid NOT NULL)");
+    await ddl.ExecuteNonQueryAsync();
+}
+
+var builder = Host.CreateApplicationBuilder();
+builder.Logging.ClearProviders();
+builder.Services.AddSingleton(store);
+builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(10));
+builder.Services.AddEventGuard().AddJsonConsumer<DocumentIndexed, PostgreSqlSession, DocumentHandler>(
+    "documents", new(new("team", "search", "documents", "document.indexed"), new("message/v1", "json/v1"),
+        new JsonMessageContract<DocumentIndexed>("document.indexed", 1, m => m.SchemaVersion, m =>
+        {
+            if (m.MessageId == Guid.Empty || string.IsNullOrWhiteSpace(m.DocumentId) || m.Revision < 1)
+                throw new IngressMessageRejectedException("invalid-document");
+        }), m => (m.MessageId.ToString("D"), m.MessageId), new WorkPumpOptions(maximumConcurrency: 2)),
+    sp => sp.GetRequiredService<PostgreSqlWorkStore>());
+using var host = builder.Build();
+using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+await host.StartAsync(deadline.Token);
+try
+{
+    var consumer = host.Services.GetRequiredKeyedService<IEventGuardConsumer<DocumentIndexed>>("documents");
+    var latest = new DocumentIndexed(Guid.Parse("82ef7d2a-b67e-48ab-9010-127cb1e42baf"), 1, "doc-001", 18, "Current title");
+    var first = await consumer.SubmitAsync(latest, deadline.Token);
+    await Completed(first.Work.Id);
+    var duplicate = await consumer.SubmitAsync(latest, deadline.Token);
+    var older = await consumer.SubmitAsync(latest with { MessageId = Guid.Parse("eb65dff1-8721-4d6b-bf63-36d5cc9bda1a"), Revision = 17, Title = "Stale title" }, deadline.Token);
+    await Completed(older.Work.Id);
+    var expected = restored ? AcceptanceStatus.Duplicate : AcceptanceStatus.Accepted;
+    if (first.Status != expected || duplicate.Status != AcceptanceStatus.Duplicate
+        || duplicate.Work.Id != first.Work.Id || older.Status != expected)
+        throw new InvalidOperationException("Unexpected acceptance or deduplication.");
+    await using var verify = data.CreateCommand("SELECT revision,title,(SELECT count(*) FROM document_effects),(SELECT count(DISTINCT work_id) FROM document_effects) FROM documents WHERE id='doc-001'");
+    await using var reader = await verify.ExecuteReaderAsync(deadline.Token);
+    if (!await reader.ReadAsync(deadline.Token) || reader.GetInt64(0) != 18 || reader.GetString(1) != "Current title"
+        || reader.GetInt64(2) != 2 || reader.GetInt64(3) != 2)
+        throw new InvalidOperationException("Revision or exactly-one-effect invariant failed.");
+    Console.WriteLine(JsonSerializer.Serialize(new { passed = true, customModel = "DocumentIndexed", restored, revision = 18, accepted = restored ? 0 : 2, duplicate = restored ? 3 : 1, effects = 2 }));
+
+    async Task Completed(Guid id)
+    {
+        while ((await consumer.FindAsync(id, deadline.Token))?.State != WorkState.Completed)
+            await Task.Delay(30, deadline.Token);
+    }
+}
+finally { await host.StopAsync(CancellationToken.None); }
+
+public sealed record DocumentIndexed(Guid MessageId, int SchemaVersion, string DocumentId, long Revision, string Title);
+public sealed class DocumentHandler : IEventGuardHandler<DocumentIndexed, PostgreSqlSession>
+{
+    public async ValueTask HandleAsync(DocumentIndexed message, WorkItem work, PostgreSqlSession session, CancellationToken ct)
+    {
+        await using var sql = session.CreateCommand("""
+            INSERT INTO documents(id,revision,title) VALUES(@id,@revision,@title)
+            ON CONFLICT(id) DO UPDATE SET revision=EXCLUDED.revision,title=EXCLUDED.title WHERE documents.revision<EXCLUDED.revision;
+            INSERT INTO document_effects(work_id) VALUES(@work);
+            """);
+        sql.Parameters.AddWithValue("id", message.DocumentId); sql.Parameters.AddWithValue("revision", message.Revision);
+        sql.Parameters.AddWithValue("title", message.Title); sql.Parameters.AddWithValue("work", work.Id);
+        await sql.ExecuteNonQueryAsync(ct);
+    }
+}

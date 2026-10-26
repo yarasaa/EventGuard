@@ -1,0 +1,66 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "librdkafka.redist": {
+        "type": "Transitive",
+        "resolved": "2.15.1",
+        "contentHash": "fhRs/2fY80isR9zqrCkDdEhrp5Vi4Lxetg6yjhBl2uNiQs9Z2StA/Q8WqkJmj5OqmG8BQaP6OXvzbGngqXid+w=="
+      },
+      "Microsoft.Extensions.DependencyInjection.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.0",
+        "contentHash": "L3AdmZ1WOK4XXT5YFPEwyt0ep6l8lGIPs7F5OOBZc77Zqeo01Of7XXICy47628sdVl0v/owxYJTe86DTgFwKCA=="
+      },
+      "Microsoft.Extensions.Logging.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.0",
+        "contentHash": "FU/IfjDfwaMuKr414SSQNTIti/69bHEMb+QKrskRb26oVqpx3lNFXMjs/RC9ZUuhBhcwDM2BwOgoMw+PZ+beqQ==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0"
+        }
+      },
+      "eventguard.core": {
+        "type": "Project"
+      },
+      "eventguard.kafka": {
+        "type": "Project",
+        "dependencies": {
+          "Confluent.Kafka": "[2.15.1, )",
+          "EventGuard.Core": "[0.1.0-dev.28, )"
+        }
+      },
+      "eventguard.postgresql": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "Npgsql": "[10.0.3, )"
+        }
+      },
+      "eventguard.runtime": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Core": "[0.1.0-dev.28, )"
+        }
+      },
+      "Confluent.Kafka": {
+        "type": "CentralTransitive",
+        "requested": "[2.15.1, )",
+        "resolved": "2.15.1",
+        "contentHash": "II/gcWsptqKp3UJ4f7zFug7S4xfND1IdYsrNlIJSRRG8WHmP/NfSXiiLWhKGzTUlZwfkL1mcdU71eo1eKf04pA==",
+        "dependencies": {
+          "librdkafka.redist": "2.15.1"
+        }
+      },
+      "Npgsql": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.3, )",
+        "resolved": "10.0.3",
+        "contentHash": "7nb5YzXuvWWJxB0J8DiyL3we+X4FOctZrt0fIBnucOIaIevFEEwGQVZKtiu9olXdlNAK1eNgqSral6r/jlhI4w==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.0"
+        }
+      }
+    }
+  }
+}

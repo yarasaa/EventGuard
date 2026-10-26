@@ -1,0 +1,38 @@
+@page "/outbox/{scope}/{id:guid}/replay"
+@model OutboxReplayModel
+@{ ViewData["Title"] = "Replay request"; }
+<a class="back" asp-page="/OutboxDetail" asp-route-scope="@Model.Scope.Key" asp-route-id="@Model.IntentId">← Back to outgoing event</a>
+<div class="page-heading"><div><div class="eyebrow">@Model.Scope.Label</div><h1>Replay request</h1><p>Queue one failed publication for another delivery attempt.</p></div><span class="read-only">Operator access</span></div>
+@if (Model.Error is not null) { <section class="notice error" role="alert"><h2>@(Model.OutcomeUnconfirmed ? "Outcome not confirmed" : "Request unavailable")</h2><p>@Model.Error</p></section> }
+@if (Model.Receipt is { } receipt)
+{
+    <section class="card detail-card"><div class="card-heading"><h2>@OutboxReplayDisplay.Title(receipt.Result.Status)</h2><span class="muted">Saved request result</span></div>
+        <p class="explanation">@OutboxReplayDisplay.Explanation(receipt.Result.Status)</p>
+        <dl class="facts"><div><dt>Request ID</dt><dd>@receipt.RequestId</dd></div><div><dt>Intent ID</dt><dd>@receipt.Result.IntentId</dd></div><div><dt>Recorded generation</dt><dd>@receipt.Result.Generation</dd></div><div><dt>Recorded version</dt><dd>@receipt.Result.Version</dd></div><div><dt>Duplicate risk acknowledged</dt><dd>@(receipt.AcknowledgePossibleDuplicate ? "Yes" : "No")</dd></div><div><dt>Saved · UTC</dt><dd>@Display.Time(receipt.CreatedAt)</dd></div></dl>
+        <div class="replay-reason"><h2>Your reason</h2><p>@receipt.Reason</p></div>
+        <p class="data-note">This receipt describes the request outcome. Open outgoing event details to see subsequent publish attempts and the current status.</p>
+    </section>
+}
+else if (Model.LookupRequestId is { } requestId && Model.Error is null)
+{
+    <section class="notice"><h2>No saved result found for your account</h2><p>Request @requestId has no visible receipt yet. This does not prove that an earlier submission failed. Keep the original request and use its review page to retry.</p><a class="button" asp-page="/OutboxReplay" asp-route-scope="@Model.Scope.Key" asp-route-id="@Model.IntentId" asp-route-requestId="@requestId">Check again</a></section>
+}
+else if (Model.Review is { } review)
+{
+    <section class="card detail-card replay-card"><div class="card-heading"><h2>Review before submitting</h2><span class="muted">One outgoing event</span></div>
+        <dl class="facts"><div><dt>Intent ID</dt><dd>@review.IntentId</dd></div><div><dt>Duplicate risk acknowledged</dt><dd>@(review.AcknowledgePossibleDuplicate ? "Yes" : "No")</dd></div><div><dt>Expected version</dt><dd>@review.ExpectedVersion</dd></div><div><dt>Request ID</dt><dd>@review.RequestId</dd></div></dl>
+        <div class="replay-reason"><h2>Your reason</h2><p>@review.Reason</p></div>
+        @if (review.AcknowledgePossibleDuplicate) { <div class="delivery-notice"><strong>Possible duplicate publication acknowledged</strong><p>You confirmed that another send may deliver this event more than once.</p></div> }
+        <p class="explanation">The outbox worker will publish the original event. This screen does not send it to the broker. Payload, identity and destination remain unchanged. Submitting again with this request ID returns its saved result.</p>
+        <form method="post" asp-page-handler="Submit" class="replay-actions"><input type="hidden" name="ticket" value="@review.Ticket" />@if (!Model.RequestConflict) { <button class="button primary" type="submit">@(Model.Error is null ? "Submit replay request" : "Retry same request")</button> }<a class="button" asp-page="/OutboxReplay" asp-route-scope="@Model.Scope.Key" asp-route-id="@Model.IntentId" asp-route-requestId="@review.RequestId">Check saved status</a><a class="button" asp-page="/OutboxDetail" asp-route-scope="@Model.Scope.Key" asp-route-id="@Model.IntentId">Cancel</a></form>
+    </section>
+}
+else if (Model.Preview is { } preview)
+{
+    <section class="card detail-card replay-card"><div class="card-heading"><code class="full-id">@preview.Message.Id</code><span class="status @preview.Message.State">@OutboxDisplay.State(preview.Message.State)</span></div><p class="explanation">@preview.Explanation</p>
+    @if (preview.Ticket is not null)
+    {
+        <form method="post" asp-page-handler="Review" class="replay-form"><input type="hidden" name="draft" value="@preview.Ticket" /><label for="reason">Why should this publication be retried?</label><textarea id="reason" name="reason" rows="4" maxlength="1024" required placeholder="Describe what was corrected or why another attempt is appropriate."></textarea><p class="filter-hint">Required. Up to 1,024 UTF-8 bytes. The reason is stored with your operator identity; keep secrets out.</p>@if (preview.Message.DeliveryUncertain) { <div class="delivery-notice"><strong>Possible earlier delivery</strong><p>An earlier attempt may already have reached its destination.</p><label class="acknowledgement" for="acknowledgePossibleDuplicate"><input id="acknowledgePossibleDuplicate" type="checkbox" name="acknowledgePossibleDuplicate" value="true" required /> I acknowledge that another publication may create a duplicate.</label></div> }<button class="button primary" type="submit">Review request</button></form>
+    }
+    </section>
+}

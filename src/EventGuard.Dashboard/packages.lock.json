@@ -1,0 +1,414 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "Microsoft.AspNetCore.Authentication.OpenIdConnect": {
+        "type": "Direct",
+        "requested": "[10.0.12, )",
+        "resolved": "10.0.12",
+        "contentHash": "UfkKr9EP+LBgnFfxwkfnZzta7XkalCroZWoxg2yW9dt8iPXO7bJYpcmyFIeM+FLcAlOKZeduP93XhuCcfWaYIQ==",
+        "dependencies": {
+          "Microsoft.IdentityModel.Protocols.OpenIdConnect": "8.19.2"
+        }
+      },
+      "prometheus-net": {
+        "type": "Direct",
+        "requested": "[8.2.1, )",
+        "resolved": "8.2.1",
+        "contentHash": "3wVgdEPOCBF752s2xps5T+VH+c9mJK8S8GKEDg49084P6JZMumTZI5Te6aJ9MQpX0sx7om6JOnBpIi7ZBmmiDQ=="
+      },
+      "Microsoft.Bcl.Cryptography": {
+        "type": "Transitive",
+        "resolved": "10.0.2",
+        "contentHash": "LG9Yll3B5aNpxv0+D47g6LiOiKBIlodhcHdQwcYzo8VeexFLGqx5ymetmA2aBRyo9cCcWsQWrFsdbsr8LvmWDw=="
+      },
+      "Microsoft.Data.SqlClient.Extensions.Abstractions": {
+        "type": "Transitive",
+        "resolved": "7.0.3",
+        "contentHash": "sP2oeKE82gxIqw3FKJb2BmPv/6Ux6hfVw3BRyn/N+lHHKetv2SXwhvOdolmyg/W168AQDNya+rYkyV3x5TbYGA==",
+        "dependencies": {
+          "Microsoft.Data.SqlClient.Internal.Logging": "[7.0.3, 8.0.0)"
+        }
+      },
+      "Microsoft.Data.SqlClient.Internal.Logging": {
+        "type": "Transitive",
+        "resolved": "7.0.3",
+        "contentHash": "uIorWCINpWFfQGvlpd9LqwzHPf8d6IB39wjX/U48oIbiK+V9+r10U2zcXJi5NJptLe5jhVWQo537El4IGV+WbQ=="
+      },
+      "Microsoft.Data.SqlClient.SNI.runtime": {
+        "type": "Transitive",
+        "resolved": "6.0.3",
+        "contentHash": "kt2JDsmcFGzeanCo6hJNalMcjEvgtYoxSQjqh00Nm1xXmahHzuR48TxjS1nq/lpnYh+g+wLqD5D9WSz8xsybhw=="
+      },
+      "Microsoft.IdentityModel.Abstractions": {
+        "type": "Transitive",
+        "resolved": "8.19.2",
+        "contentHash": "HJbo/lnSfNHUfphPRT910poQc4T2/9+8svFLvzuaYHGAOJ2Tu+oEDqpX0BVP3BJ4OuUM1kylEKyaiX2fCAK3Cw=="
+      },
+      "Microsoft.IdentityModel.JsonWebTokens": {
+        "type": "Transitive",
+        "resolved": "8.19.2",
+        "contentHash": "ui3fuBT4fs8kdKfBthI4NzLYIBIneEVS8UrL1JVBzAn80UiKmngBBi0BEByE7n/9c+EElcfFlCMFFTqpkBSLNA==",
+        "dependencies": {
+          "Microsoft.IdentityModel.Tokens": "8.19.2"
+        }
+      },
+      "Microsoft.IdentityModel.Logging": {
+        "type": "Transitive",
+        "resolved": "8.19.2",
+        "contentHash": "r5YLDIxGOnkVJHrqXv/iD1FM1CgGrQOdriXuvuWvTPmKbnGANhEysq9XKmN6IHjf2a+9bAGEpnoRBsAQlvJU5w==",
+        "dependencies": {
+          "Microsoft.IdentityModel.Abstractions": "8.19.2"
+        }
+      },
+      "Microsoft.IdentityModel.Protocols": {
+        "type": "Transitive",
+        "resolved": "8.19.2",
+        "contentHash": "sGxSsSrZXNmca6D+jHH2rVRyo2nNRd/g4H9CFbPmLLq0xgoH1U0orLWE5minfijw7+zq49tBs7txenbfAErRoQ==",
+        "dependencies": {
+          "Microsoft.IdentityModel.Tokens": "8.19.2"
+        }
+      },
+      "Microsoft.IdentityModel.Protocols.OpenIdConnect": {
+        "type": "Transitive",
+        "resolved": "8.19.2",
+        "contentHash": "1XOcyY36cVymzE3qKdzKaUEZ4Pzt7ZpSa14JZoPPK1NLFUkQDs85TCqpV6XDo0YjFXj6nVK00AfOHppjghjhtw==",
+        "dependencies": {
+          "Microsoft.IdentityModel.Protocols": "8.19.2",
+          "System.IdentityModel.Tokens.Jwt": "8.19.2"
+        }
+      },
+      "Microsoft.IdentityModel.Tokens": {
+        "type": "Transitive",
+        "resolved": "8.19.2",
+        "contentHash": "GtPC1S02uH1gOO4fQ+zRysIicKmEXaYFP8PIkdJYXqMyruYhopre4ozVHp0XiDSA0+GJvOZH9prxCPvgBMg4Ww==",
+        "dependencies": {
+          "Microsoft.Bcl.Cryptography": "10.0.2",
+          "Microsoft.IdentityModel.Logging": "8.19.2"
+        }
+      },
+      "Microsoft.SqlServer.Server": {
+        "type": "Transitive",
+        "resolved": "1.0.0",
+        "contentHash": "N4KeF3cpcm1PUHym1RmakkzfkEv3GRMyofVv40uXsQhCQeglr2OHNcUk2WOG51AKpGO8ynGpo9M/kFXSzghwug=="
+      },
+      "System.Configuration.ConfigurationManager": {
+        "type": "Transitive",
+        "resolved": "9.0.13",
+        "contentHash": "GbBrJq9S/gYpHzm7Pxx6Y5tDyfSfyxW6tlP5oiKJV38uf19Wp+GIIAnWfyL1zmNiz1+EjwVapw2WkBFvvqKQzg==",
+        "dependencies": {
+          "System.Security.Cryptography.ProtectedData": "9.0.13"
+        }
+      },
+      "System.IdentityModel.Tokens.Jwt": {
+        "type": "Transitive",
+        "resolved": "8.19.2",
+        "contentHash": "gqhDC/icByKEutygpr+OFgAmjwTVowyzFjWB8K0q1ww8uFj5a1BQNL+QvijUl9uhq4p8OdDwcAIrjVC+eC9FVA==",
+        "dependencies": {
+          "Microsoft.IdentityModel.JsonWebTokens": "8.19.2",
+          "Microsoft.IdentityModel.Tokens": "8.19.2"
+        }
+      },
+      "System.Security.Cryptography.ProtectedData": {
+        "type": "Transitive",
+        "resolved": "9.0.13",
+        "contentHash": "t8S9IDpjJKsLpLkeBdW8cWtcPyYqrGu93Dej1RO6WwuL/lkFSqWlan3rMJfortqz1mRIh+sys2AFsSA6jWJ3Jg=="
+      },
+      "eventguard.core": {
+        "type": "Project"
+      },
+      "eventguard.operations": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Core": "[0.1.0-dev.28, )"
+        }
+      },
+      "eventguard.operations.postgresql": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Operations": "[0.1.0-dev.28, )",
+          "Npgsql": "[10.0.3, )"
+        }
+      },
+      "eventguard.operations.prometheus": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Operations": "[0.1.0-dev.28, )"
+        }
+      },
+      "eventguard.operations.replay.postgresql": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Operations": "[0.1.0-dev.28, )",
+          "EventGuard.PostgreSql": "[0.1.0-dev.28, )",
+          "Npgsql": "[10.0.3, )"
+        }
+      },
+      "eventguard.operations.replay.sqlserver": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Operations": "[0.1.0-dev.28, )",
+          "EventGuard.SqlServer": "[0.1.0-dev.28, )",
+          "Microsoft.Data.SqlClient": "[7.0.3, )",
+          "System.Security.Cryptography.Pkcs": "[9.0.21, )"
+        }
+      },
+      "eventguard.operations.sqlserver": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Operations": "[0.1.0-dev.28, )",
+          "Microsoft.Data.SqlClient": "[7.0.3, )",
+          "System.Security.Cryptography.Pkcs": "[9.0.21, )"
+        }
+      },
+      "eventguard.postgresql": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "Npgsql": "[10.0.3, )"
+        }
+      },
+      "eventguard.sqlserver": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "Microsoft.Data.SqlClient": "[7.0.3, )",
+          "System.Security.Cryptography.Pkcs": "[9.0.21, )"
+        }
+      },
+      "Microsoft.Data.SqlClient": {
+        "type": "CentralTransitive",
+        "requested": "[7.0.3, )",
+        "resolved": "7.0.3",
+        "contentHash": "5DDy4tqsB94bHXRhTnVcIceqAqJr5sW7qsIcZGdrgH2EyjlIzcPVOInc2ThZEQpl33oXuW4r8N/7kZZJtn+YMw==",
+        "dependencies": {
+          "Microsoft.Bcl.Cryptography": "9.0.13",
+          "Microsoft.Data.SqlClient.Extensions.Abstractions": "[7.0.3, 8.0.0)",
+          "Microsoft.Data.SqlClient.Internal.Logging": "[7.0.3, 8.0.0)",
+          "Microsoft.Data.SqlClient.SNI.runtime": "[6.0.3, 7.0.0)",
+          "Microsoft.IdentityModel.JsonWebTokens": "8.16.0",
+          "Microsoft.IdentityModel.Protocols.OpenIdConnect": "8.16.0",
+          "Microsoft.SqlServer.Server": "[1.0.0, 2.0.0)",
+          "System.Configuration.ConfigurationManager": "9.0.13",
+          "System.Security.Cryptography.Pkcs": "9.0.13"
+        }
+      },
+      "Npgsql": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.3, )",
+        "resolved": "10.0.3",
+        "contentHash": "7nb5YzXuvWWJxB0J8DiyL3we+X4FOctZrt0fIBnucOIaIevFEEwGQVZKtiu9olXdlNAK1eNgqSral6r/jlhI4w=="
+      },
+      "System.Security.Cryptography.Pkcs": {
+        "type": "CentralTransitive",
+        "requested": "[9.0.21, )",
+        "resolved": "9.0.21",
+        "contentHash": "KD+oHoYIxwNCajjVe58WVwq9cRpum+Pg3tRveDRtkcaw6w3oc7sNBoMRtb5P5OehI3bgv1ucMpgjf8lpj5J96A=="
+      }
+    },
+    "net8.0": {
+      "Microsoft.AspNetCore.Authentication.OpenIdConnect": {
+        "type": "Direct",
+        "requested": "[8.0.31, )",
+        "resolved": "8.0.31",
+        "contentHash": "pN5N/HBKwo4iKTxL+2drf9l1oMYImN/PHimwWP6+l6QDtXG6ot0dwQ3MK9YINNKafmLQOUkbnvG0SWNqbKEiZw==",
+        "dependencies": {
+          "Microsoft.IdentityModel.Protocols.OpenIdConnect": "7.7.3"
+        }
+      },
+      "prometheus-net": {
+        "type": "Direct",
+        "requested": "[8.2.1, )",
+        "resolved": "8.2.1",
+        "contentHash": "3wVgdEPOCBF752s2xps5T+VH+c9mJK8S8GKEDg49084P6JZMumTZI5Te6aJ9MQpX0sx7om6JOnBpIi7ZBmmiDQ=="
+      },
+      "Microsoft.Bcl.Cryptography": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "Y3t/c7C5XHJGFDnohjf1/9SYF3ZOfEU1fkNQuKg/dGf9hN18yrQj2owHITGfNS3+lKJdW6J4vY98jYu57jCO8A=="
+      },
+      "Microsoft.Data.SqlClient.Extensions.Abstractions": {
+        "type": "Transitive",
+        "resolved": "7.0.3",
+        "contentHash": "sP2oeKE82gxIqw3FKJb2BmPv/6Ux6hfVw3BRyn/N+lHHKetv2SXwhvOdolmyg/W168AQDNya+rYkyV3x5TbYGA==",
+        "dependencies": {
+          "Microsoft.Data.SqlClient.Internal.Logging": "[7.0.3, 8.0.0)"
+        }
+      },
+      "Microsoft.Data.SqlClient.Internal.Logging": {
+        "type": "Transitive",
+        "resolved": "7.0.3",
+        "contentHash": "uIorWCINpWFfQGvlpd9LqwzHPf8d6IB39wjX/U48oIbiK+V9+r10U2zcXJi5NJptLe5jhVWQo537El4IGV+WbQ=="
+      },
+      "Microsoft.Data.SqlClient.SNI.runtime": {
+        "type": "Transitive",
+        "resolved": "6.0.3",
+        "contentHash": "kt2JDsmcFGzeanCo6hJNalMcjEvgtYoxSQjqh00Nm1xXmahHzuR48TxjS1nq/lpnYh+g+wLqD5D9WSz8xsybhw=="
+      },
+      "Microsoft.IdentityModel.Abstractions": {
+        "type": "Transitive",
+        "resolved": "8.16.0",
+        "contentHash": "gSxKLWRZzBpIsEoeUPkxfywNCCvRvl7hkq146XHPk5vOQc9izSf1I+uL1vh4y2U19QPxd9Z8K/8AdWyxYz2lSg=="
+      },
+      "Microsoft.IdentityModel.JsonWebTokens": {
+        "type": "Transitive",
+        "resolved": "8.16.0",
+        "contentHash": "prBU72cIP4V8E9fhN+o/YdskTsLeIcnKPbhZf0X6mD7fdxoZqnS/NdEkSr+9Zp+2q7OZBOMfNBKGbTbhXODO4w==",
+        "dependencies": {
+          "Microsoft.IdentityModel.Tokens": "8.16.0"
+        }
+      },
+      "Microsoft.IdentityModel.Logging": {
+        "type": "Transitive",
+        "resolved": "8.16.0",
+        "contentHash": "MTzXmETkNQPACR7/XCXM1OGM6oU9RkyibqeJRtO9Ndew2LnGjMf9Atqj2VSf4XC27X0FQycUAlzxxEgQMWn2xQ==",
+        "dependencies": {
+          "Microsoft.IdentityModel.Abstractions": "8.16.0"
+        }
+      },
+      "Microsoft.IdentityModel.Protocols": {
+        "type": "Transitive",
+        "resolved": "8.16.0",
+        "contentHash": "UFrU7d46UTsPQTa2HIEIpB9H1uJe1BW9FLw5uhEJ2ZuKdur8bcUA/bO5caq5dlBt5gNJeRIB3QQXYNs5fCQCZA==",
+        "dependencies": {
+          "Microsoft.IdentityModel.Tokens": "8.16.0"
+        }
+      },
+      "Microsoft.IdentityModel.Protocols.OpenIdConnect": {
+        "type": "Transitive",
+        "resolved": "8.16.0",
+        "contentHash": "h4yVXyJsEBBX5lg2G5ftMsi5JzcNEGAzrNphA6DQ6eOd8P0s+cDCOyPwVTYLePZvJL5unbPvYIvzrbTXzFjXnQ==",
+        "dependencies": {
+          "Microsoft.IdentityModel.Protocols": "8.16.0",
+          "System.IdentityModel.Tokens.Jwt": "8.16.0"
+        }
+      },
+      "Microsoft.IdentityModel.Tokens": {
+        "type": "Transitive",
+        "resolved": "8.16.0",
+        "contentHash": "rtViGJcGsN7WcfUNErwNeQgjuU5cJNl6FDQsfi9TncwO+Epzn0FTfBsg3YuFW1Q0Ch/KPxaVdjLw3/+5Z5ceFQ==",
+        "dependencies": {
+          "Microsoft.IdentityModel.Logging": "8.16.0"
+        }
+      },
+      "Microsoft.SqlServer.Server": {
+        "type": "Transitive",
+        "resolved": "1.0.0",
+        "contentHash": "N4KeF3cpcm1PUHym1RmakkzfkEv3GRMyofVv40uXsQhCQeglr2OHNcUk2WOG51AKpGO8ynGpo9M/kFXSzghwug=="
+      },
+      "System.Configuration.ConfigurationManager": {
+        "type": "Transitive",
+        "resolved": "8.0.1",
+        "contentHash": "gPYFPDyohW2gXNhdQRSjtmeS6FymL2crg4Sral1wtvEJ7DUqFCDWDVbbLobASbzxfic8U1hQEdC7hmg9LHncMw==",
+        "dependencies": {
+          "System.Security.Cryptography.ProtectedData": "8.0.0"
+        }
+      },
+      "System.IdentityModel.Tokens.Jwt": {
+        "type": "Transitive",
+        "resolved": "8.16.0",
+        "contentHash": "rrs2u7DRMXQG2yh0oVyF/vLwosfRv20Ld2iEpYcKwQWXHjfV+gFXNQsQ9p008kR9Ou4pxBs68Q6/9zC8Gi1wjg==",
+        "dependencies": {
+          "Microsoft.IdentityModel.JsonWebTokens": "8.16.0",
+          "Microsoft.IdentityModel.Tokens": "8.16.0"
+        }
+      },
+      "System.Security.Cryptography.ProtectedData": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "+TUFINV2q2ifyXauQXRwy4CiBhqvDEDZeVJU7qfxya4aRYOKzVBpN+4acx25VcPB9ywUN6C0n8drWl110PhZEg=="
+      },
+      "eventguard.core": {
+        "type": "Project"
+      },
+      "eventguard.operations": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Core": "[0.1.0-dev.28, )"
+        }
+      },
+      "eventguard.operations.postgresql": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Operations": "[0.1.0-dev.28, )",
+          "Npgsql": "[8.0.9, )"
+        }
+      },
+      "eventguard.operations.prometheus": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Operations": "[0.1.0-dev.28, )"
+        }
+      },
+      "eventguard.operations.replay.postgresql": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Operations": "[0.1.0-dev.28, )",
+          "EventGuard.PostgreSql": "[0.1.0-dev.28, )",
+          "Npgsql": "[8.0.9, )"
+        }
+      },
+      "eventguard.operations.replay.sqlserver": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Operations": "[0.1.0-dev.28, )",
+          "EventGuard.SqlServer": "[0.1.0-dev.28, )",
+          "Microsoft.Data.SqlClient": "[7.0.3, )",
+          "System.Security.Cryptography.Pkcs": "[8.0.2, )"
+        }
+      },
+      "eventguard.operations.sqlserver": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Operations": "[0.1.0-dev.28, )",
+          "Microsoft.Data.SqlClient": "[7.0.3, )",
+          "System.Security.Cryptography.Pkcs": "[8.0.2, )"
+        }
+      },
+      "eventguard.postgresql": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "Npgsql": "[8.0.9, )"
+        }
+      },
+      "eventguard.sqlserver": {
+        "type": "Project",
+        "dependencies": {
+          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "Microsoft.Data.SqlClient": "[7.0.3, )",
+          "System.Security.Cryptography.Pkcs": "[8.0.2, )"
+        }
+      },
+      "Microsoft.Data.SqlClient": {
+        "type": "CentralTransitive",
+        "requested": "[7.0.3, )",
+        "resolved": "7.0.3",
+        "contentHash": "5DDy4tqsB94bHXRhTnVcIceqAqJr5sW7qsIcZGdrgH2EyjlIzcPVOInc2ThZEQpl33oXuW4r8N/7kZZJtn+YMw==",
+        "dependencies": {
+          "Microsoft.Bcl.Cryptography": "8.0.0",
+          "Microsoft.Data.SqlClient.Extensions.Abstractions": "[7.0.3, 8.0.0)",
+          "Microsoft.Data.SqlClient.Internal.Logging": "[7.0.3, 8.0.0)",
+          "Microsoft.Data.SqlClient.SNI.runtime": "[6.0.3, 7.0.0)",
+          "Microsoft.IdentityModel.JsonWebTokens": "8.16.0",
+          "Microsoft.IdentityModel.Protocols.OpenIdConnect": "8.16.0",
+          "Microsoft.SqlServer.Server": "[1.0.0, 2.0.0)",
+          "System.Configuration.ConfigurationManager": "8.0.1",
+          "System.Security.Cryptography.Pkcs": "8.0.1"
+        }
+      },
+      "Npgsql": {
+        "type": "CentralTransitive",
+        "requested": "[8.0.9, )",
+        "resolved": "8.0.9",
+        "contentHash": "H7O9NrvSO+BaojUOK59YmSOi7+RabnBoNPw1F7NgtZhw5uBeAA3bCjTH2VjgacUVHe8K1asPyj/a/mnhJ/e1yA=="
+      },
+      "System.Security.Cryptography.Pkcs": {
+        "type": "CentralTransitive",
+        "requested": "[8.0.2, )",
+        "resolved": "8.0.2",
+        "contentHash": "VWACYq0JGxi9sw3TonSSV4B2MfhYk5nhgOtp9wbrt5NFOtUetFqHkMZylcCwPX+117cBJH5EnIzIy6X4OKn/kA=="
+      }
+    }
+  }
+}

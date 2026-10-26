@@ -1,0 +1,48 @@
+@inject DashboardModules Modules
+@inject DashboardAudit Audit
+@inject DashboardBacklog Backlog
+@inject DashboardOptions Settings
+@inject DashboardQueries Queries
+@inject DashboardReplays Replays
+@inject DashboardRecovery Recovery
+@inject DashboardOutboxQueries OutboxQueries
+@inject DashboardOutboxReplays OutboxReplays
+@{ var operatorAccess = Queries.AllowedScopes(User).Any(s => Replays.CanReplay(User, s) || Recovery.CanRecover(User, "ingress", s.Key)) || OutboxQueries.AllowedScopes(User).Any(s => OutboxReplays.CanReplay(User, s) || Recovery.CanRecover(User, "outbox", s.Key)); }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] · EventGuard</title>
+    <link rel="stylesheet" href="~/dashboard.css" asp-append-version="true" />
+</head>
+<body>
+    <a class="skip" href="#main">Skip to content</a>
+    <aside class="sidebar">
+        <a class="brand" asp-page="/Index"><span class="brand-mark">E</span> EventGuard<span class="beta">DEV</span></a>
+        <div class="nav-label">OPERATIONS</div>
+        @if (Queries.AllowedScopes(User).Count > 0)
+        {
+        <a class="nav-item @(!Context.Request.Path.StartsWithSegments("/outbox") && !Context.Request.Path.StartsWithSegments("/quarantine") && !Context.Request.Path.StartsWithSegments("/system") && !Context.Request.Path.StartsWithSegments("/workers") && !Context.Request.Path.StartsWithSegments("/backlog") && !Context.Request.Path.StartsWithSegments("/ingress") && !Context.Request.Path.StartsWithSegments("/recovery") && !Context.Request.Path.StartsWithSegments("/audit") && !Context.Request.Path.StartsWithSegments("/bulk-replay") && !Context.Request.Path.StartsWithSegments("/modules") ? "active" : "")" asp-page="/Index"><span aria-hidden="true">▤</span> Work items <span class="nav-arrow">↗</span></a>
+        }
+        @if (OutboxQueries.AllowedScopes(User).Count > 0)
+        {
+            <a class="nav-item @(Context.Request.Path.StartsWithSegments("/outbox") ? "active" : "")" href="/outbox"><span aria-hidden="true">↗</span> Outbox</a>
+            <a class="nav-item @(Context.Request.Path.StartsWithSegments("/quarantine") ? "active" : "")" href="/quarantine"><span aria-hidden="true">◇</span> Outbox quarantine</a>
+        }
+        @if (Settings.IngressMonitoringEnabled && Queries.AllowedScopes(User).Count > 0) { <a class="nav-item @(Context.Request.Path.StartsWithSegments("/ingress") ? "active" : "")" asp-page="/Ingress">Incoming quarantine</a> }
+        @if (Audit.Allowed(User).FirstOrDefault() is { } auditTarget) { <a class="nav-item @(Context.Request.Path.StartsWithSegments("/audit") ? "active" : "")" asp-page="/Audit" asp-route-kind="@auditTarget.Kind" asp-route-scope="@auditTarget.Key">Audit log</a> }
+        @if (Modules.Allowed(User).Count > 0) { <a class="nav-item @(Context.Request.Path.StartsWithSegments("/modules") ? "active" : "")" asp-page="/Modules">Execution modules</a> }
+        @if (Backlog.Allowed(User).Count > 0) { <a class="nav-item @(Context.Request.Path.StartsWithSegments("/backlog") ? "active" : "")" asp-page="/Backlog">Backlog</a> }
+        @if (MonitoringEndpoints.CanMonitor(Settings, User)) { <a class="nav-item @(Context.Request.Path.StartsWithSegments("/system") ? "active" : "")" asp-page="/System">System health</a><a class="nav-item @(Context.Request.Path.StartsWithSegments("/workers") ? "active" : "")" asp-page="/Workers">Workers</a> }
+        <div class="side-note"><span class="small-dot"></span> @(operatorAccess ? "Operator access" : "Read-only access")<p>Processing continues in your application.</p></div>
+        <div class="side-footer"><span class="avatar">EG</span><div>@(Settings.DevelopmentAccess ? "Local developer" : operatorAccess ? "Authorized operator" : "Authorized viewer")<small>@Settings.StoreId</small></div></div>
+    </aside>
+    <div class="workspace">
+        <header class="topbar"><div><span class="muted">Application</span><span class="divider">/</span><strong>@Settings.ApplicationLabel</strong></div><div class="header-actions"><div class="environment"><span class="small-dot"></span>@Settings.EnvironmentLabel</div>@if (!Settings.DevelopmentAccess && User.Identity?.IsAuthenticated == true) { <form method="post" asp-page="/Logout"><button class="button" type="submit">Sign out</button></form> }</div></header>
+        @if (Settings.DevelopmentAccess) { <div class="dev-notice">Local development access · This computer only</div> }
+        <main id="main">@RenderBody()</main>
+        <footer class="page-footer"><span>EventGuard Operations · Experimental</span><span>Operations view · UTC</span></footer>
+    </div>
+</body>
+</html>

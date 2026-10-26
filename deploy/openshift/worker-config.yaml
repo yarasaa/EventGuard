@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eventguard-worker-config
+  namespace: eventguard
+data:
+  EventGuard__Provider: PostgreSql
+  EventGuard__Schema: eventguard_worker
+  EventGuard__Tenant: production
+  EventGuard__Consumer: product-projection
+  EventGuard__Source: catalog
+  EventGuard__MaximumConcurrency: '4'
+  EventGuard__LeaseSeconds: '30'
+  DOTNET_ENVIRONMENT: Production

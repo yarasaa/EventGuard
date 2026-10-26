@@ -1,0 +1,29 @@
+# Apply only after worker-migration.yaml succeeds. No public service or ingress is needed.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventguard-worker
+  namespace: eventguard
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: eventguard-worker}}
+  template:
+    metadata:
+      labels: {app: eventguard-worker}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: worker
+          image: YOUR_REGISTRY/eventguard-worker:0.1.0-dev.28
+          args: [run]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: '1', memory: 512Mi}
+          envFrom:
+            - configMapRef: {name: eventguard-worker-config}
+            - secretRef: {name: eventguard-worker-runtime}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+      volumes: [{name: tmp, emptyDir: {sizeLimit: 64Mi}}]

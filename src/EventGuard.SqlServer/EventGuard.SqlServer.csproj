@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../EventGuard.Core/EventGuard.Core.csproj" />
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
+    <EmbeddedResource Include="Migrations/*.sql" />
+    <EmbeddedResource Include="Jobs/Migrations/*.sql" />
+    <EmbeddedResource Include="External/Migrations/*.sql" />
+    <EmbeddedResource Include="Snapshots/Migrations/*.sql" />
+    <EmbeddedResource Include="Workflows/Migrations/*.sql" />
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

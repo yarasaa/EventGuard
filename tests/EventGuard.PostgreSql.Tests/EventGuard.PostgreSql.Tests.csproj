@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../ProcessSupport/PostgreSqlFaultTransport.cs" Link="PostgreSqlFaultTransport.cs" />
+    <ProjectReference Include="../../src/EventGuard.PostgreSql/EventGuard.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/EventGuard.Runtime/EventGuard.Runtime.csproj" />
+    <ProjectReference Include="../EventGuard.Store.Conformance/EventGuard.Store.Conformance.csproj" />
+    <ProjectReference Include="../EventGuard.CrashWorker/EventGuard.CrashWorker.csproj" ReferenceOutputAssembly="false" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

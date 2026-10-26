@@ -1,0 +1,10 @@
+# Choose a cluster storage class supporting shared RWX access for both dashboard replicas.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: eventguard-dashboard-keys
+  namespace: eventguard
+spec:
+  accessModes: [ReadWriteMany]
+  resources:
+    requests: {storage: 1Gi}

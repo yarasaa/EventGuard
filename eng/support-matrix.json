@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "releaseStage": "experimental",
+  "frameworks": [
+    "net8.0",
+    "net10.0"
+  ],
+  "stores": {
+    "postgresql": {
+      "schema": 11,
+      "testedServerMajor": [
+        18
+      ],
+      "durability": "Writable primary; fsync, synchronous_commit and full_page_writes enabled"
+    },
+    "sqlserver": {
+      "schema": 8,
+      "testedServerMajor": [
+        16
+      ],
+      "durability": "RCSI enabled; delayed durability and MARS disabled"
+    }
+  },
+  "brokers": {
+    "kafka": {
+      "testedServerMajor": [
+        4
+      ],
+      "delivery": "At least once; duplicates possible after an uncertain publish/acknowledgement"
+    },
+    "rabbitmq": {
+      "testedServerMajor": [
+        4
+      ],
+      "delivery": "At least once; publisher confirms and durable topology required"
+    }
+  },
+  "combinations": [
+    {
+      "store": "postgresql",
+      "broker": "kafka",
+      "implemented": true
+    },
+    {
+      "store": "postgresql",
+      "broker": "rabbitmq",
+      "implemented": true
+    },
+    {
+      "store": "sqlserver",
+      "broker": "kafka",
+      "implemented": true
+    },
+    {
+      "store": "sqlserver",
+      "broker": "rabbitmq",
+      "implemented": true
+    }
+  ],
+  "transactionBoundary": "One local database transaction shared by business SQL, EventGuard state and outbox intents",
+  "payload": "Opaque bytes in the core; optional explicitly versioned JSON contracts",
+  "extensionRequirement": "New providers must pass the applicable store/transport conformance tests; implementing an interface is not qualification",
+  "unsupported": [
+    "Other databases or brokers without a validated adapter",
+    "Distributed transactions",
+    "Exactly-once external effects",
+    "Global cross-shard deduplication or budgets",
+    "Built-in HTTP/webhook transport",
+    "Million-per-second capacity guarantee",
+    "Unbounded workflow cycles, automatic compensation or dynamic workflow rewrites",
+    "Qualified Qlik task setup or real external-service contracts without adapter acceptance tests"
+  ],
+  "versionPolicy": {
+    "prerelease": "Pin an exact version. Breaking changes require release notes and an explicit migration; no blanket compatibility promise.",
+    "stable": "A future 1.x release must retain public API compatibility within the major version; breaking API changes require a new major.",
+    "schema": "Versioned forward migrations with a native backup/restore rehearsal; no implicit downgrade or mixed-writer guarantee.",
+    "checks": "SDK API/package comparison against explicit baseline artifacts, native behavior tests, clean package-only onboarding"
+  },
+  "optionalModules": {
+    "jobs": {
+      "schema": 2,
+      "stores": [
+        "postgresql",
+        "sqlserver"
+      ],
+      "capabilities": [
+        "typed-command-receipts",
+        "immutable-definitions",
+        "transactional-batch-items"
+      ],
+      "limits": "1 MiB command/batch, 1\u20131000 items; transactional item receipts. Source preparation and workflow coordination are separate optional modules."
+    },
+    "externalActions": {
+      "schema": 4,
+      "stores": [
+        "postgresql",
+        "sqlserver"
+      ],
+      "capabilities": [
+        "transactional-intent",
+        "separate-acceptance",
+        "uncertain-outcome-reconciliation",
+        "deferred-observation",
+        "late-response-evidence",
+        "transactional-versioned-result-projections",
+        "durable-callback-inbox",
+        "monotonic-report-revisions",
+        "shared-service-window-quota",
+        "shared-concurrency-permits",
+        "circuit-breaker"
+      ],
+      "limits": "One processing store coordinates calls. Unknown acceptance never automatically resends. Host authenticates callbacks; adapters own actual provider contracts. Payloads/receipts retained; no automatic remote compensation."
+    },
+    "snapshots": {
+      "schema": 1,
+      "stores": [
+        "postgresql",
+        "sqlserver"
+      ],
+      "capabilities": [
+        "consistent-source-views",
+        "generation-fencing",
+        "bulk-deduplication",
+        "sealed-batches",
+        "frozen-local-outbox-cdc-routing",
+        "bounded-staging-retention",
+        "batch-export"
+      ],
+      "limits": "Native source transactions recapture after disconnect; resumable views require an immutable custom source. Max page 1000 items/4 MiB; batch/envelope max 1 MiB. Qlik mapping and delivery are application integration work."
+    },
+    "workflows": {
+      "schema": 1,
+      "stores": [
+        "postgresql",
+        "sqlserver"
+      ],
+      "capabilities": [
+        "frozen-dag",
+        "job-fork-join",
+        "signal-branches",
+        "durable-timers",
+        "transactional-signals",
+        "pause-cancel-deadline"
+      ],
+      "limits": "1\u201364 static steps; 8 MiB total initial inputs. No cycles, dynamic rewrites, automatic compensation or rollback of dispatched jobs."
+    }
+  }
+}

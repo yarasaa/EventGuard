@@ -1,0 +1,290 @@
+using System.Data.Common;
+using System.Text.Json;
+using EventGuard;
+using EventGuard.PostgreSql;
+using EventGuard.SqlServer;
+using EventGuard.Runtime;
+using Npgsql;
+using Microsoft.Data.SqlClient;
+
+// This fixture consumes only NuGet packages. Each model belongs to the application.
+var provider = args.Single();
+var schema = "eg_composition_" + Guid.NewGuid().ToString("N");
+if (provider == "postgresql")
+{
+    await using var source = NpgsqlDataSource.Create("Host=127.0.0.1;Port=55432;Database=eventguard_test;Username=eventguard;Password=eventguard-local-only;Maximum Pool Size=8");
+    var store = new PostgreSqlWorkStore(source, schema);
+    await store.InitializeSnapshotsAsync(); await store.InitializeExternalActionsAsync(); await store.InitializeWorkflowsAsync();
+    await using var connection = await source.OpenConnectionAsync();
+    try { await Run<PostgreSqlSession>(store, store, connection, session => session.CreateCommand(""), contract => new PostgreSqlSnapshotSource(source,"replica","v1",(c,t,parameters)=> { var query=new NpgsqlCommand($"SELECT id FROM {schema}.source_records WHERE category=@category ORDER BY id",c,t); query.Parameters.AddWithValue("category",JsonSerializer.Deserialize<int>(parameters.Span)); return query; }, r=>new(r.GetInt32(0).ToString(System.Globalization.CultureInfo.InvariantCulture),contract.Encode(new(r.GetInt32(0)))))); }
+    finally { await using var drop = connection.CreateCommand(); drop.CommandText = $"DROP SCHEMA {schema} CASCADE"; await drop.ExecuteNonQueryAsync(); }
+}
+else if (provider == "sqlserver")
+{
+    var source = new SqlServerDataSource("Server=127.0.0.1,51433;Database=eventguard_test;User Id=sa;Password=EventGuard-Local-Only!2026;Encrypt=False;TrustServerCertificate=True;Max Pool Size=8");
+    await using (var initialize = await source.OpenConnectionAsync()) { await using var command=initialize.CreateCommand(); command.CommandText="ALTER DATABASE eventguard_test SET ALLOW_SNAPSHOT_ISOLATION ON"; await command.ExecuteNonQueryAsync(); }
+    var store = new SqlServerWorkStore(source, schema);
+    await store.InitializeSnapshotsAsync(); await store.InitializeExternalActionsAsync(); await store.InitializeWorkflowsAsync();
+    await using var connection = await source.OpenConnectionAsync();
+    try { await Run<SqlServerSession>(store, store, connection, session => session.CreateCommand(""), contract => new SqlServerSnapshotSource(source,"replica","v1",(c,t,parameters)=> { var query=new SqlCommand($"SELECT id FROM {schema}.source_records WHERE category=@category ORDER BY id",c,t); query.Parameters.AddWithValue("category",JsonSerializer.Deserialize<int>(parameters.Span)); return query; }, r=>new(r.GetInt32(0).ToString(System.Globalization.CultureInfo.InvariantCulture),contract.Encode(new(r.GetInt32(0)))))); }
+    finally
+    {
+        await using var drop = connection.CreateCommand();
+        drop.CommandText = $"""
+            DECLARE @sql nvarchar(max)='';
+            SELECT @sql+=N'ALTER TABLE '+QUOTENAME(s.name)+'.'+QUOTENAME(t.name)+N' DROP CONSTRAINT '+QUOTENAME(f.name)+';'
+            FROM sys.foreign_keys f JOIN sys.tables t ON f.parent_object_id=t.object_id JOIN sys.schemas s ON t.schema_id=s.schema_id WHERE s.name='{schema}';
+            EXEC sys.sp_executesql @sql; SET @sql='';
+            SELECT @sql+=N'DROP TABLE '+QUOTENAME(s.name)+'.'+QUOTENAME(t.name)+';' FROM sys.tables t JOIN sys.schemas s ON t.schema_id=s.schema_id WHERE s.name='{schema}';
+            EXEC sys.sp_executesql @sql; EXEC('DROP SCHEMA {schema}');
+            """;
+        await drop.ExecuteNonQueryAsync();
+    }
+}
+else throw new ArgumentException("Choose postgresql or sqlserver.");
+
+async Task Run<TSession>(ITransactionalJobStore<TSession> jobs, IExternalActionStore external, DbConnection connection,
+    Func<TSession, DbCommand> commandFactory, Func<JsonMessageContract<SelectedRecord>,ISnapshotSource> sourceFactory) where TSession : IJobItemSession, IExternalActionSession, IExternalResultSession, IWorkflowSignalSession
+{
+    using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+    var ct = deadline.Token;
+    await using (var create = connection.CreateCommand())
+    {
+        create.CommandText = $"CREATE TABLE {schema}.sample_effects(domain varchar(40) NOT NULL, business_key varchar(40) NOT NULL)";
+        await create.ExecuteNonQueryAsync(ct);
+    }
+    await using (var create = connection.CreateCommand())
+    {
+        create.CommandText = $"CREATE TABLE {schema}.partner_status(account_id varchar(40) PRIMARY KEY, status varchar(40) NOT NULL, reference varchar(64))";
+        await create.ExecuteNonQueryAsync(ct);
+    }
+    var actions = new List<ExternalAction>();
+    var outputScope = new ProducerScope("sample-tenant", "partner-provisioning");
+    var partnerContract = Contract<PartnerAccount>("partner-account");
+    var resultTarget = new ExternalResultTarget(outputScope, "partner-status", "v1");
+    await Domain("documents", new[] { new Document("a", "main", 7), new Document("b", "main", 8), new Document("c", "archive", 9) }, d => d.Id);
+    await Domain("inventory", new[] { new Inventory("a", "north", 10), new Inventory("b", "south", 20), new Inventory("c", "north", 30) }, d => d.Sku);
+    await Domain("partners", new[] { new PartnerAccount("a", "basic", "en"), new PartnerAccount("b", "pro", "fr"), new PartnerAccount("c", "basic", "tr") }, d => d.AccountId,
+        async (item, session, token) =>
+        {
+            var id = new Guid(Convert.FromHexString(StableHash.Of("sample/partner/v1", outputScope.Id, item.AccountId)).AsSpan(0, 16));
+            var action = new ExternalAction(outputScope, id, "partner-api", "v1", partnerContract.Encode(item), TimeSpan.FromMinutes(1));
+            await using var status = commandFactory(session);
+            status.CommandText = $"INSERT INTO {schema}.partner_status(account_id,status) VALUES(@id,'queued')";
+            AddParameter(status, "id", item.AccountId); await status.ExecuteNonQueryAsync(token);
+            await session.ExternalActions.EnqueueAsync(action, resultTarget, token);
+            lock (actions) actions.Add(action);
+        });
+    var service = new DemoPartnerService();
+    var policy = new ExternalActionPolicy(retryDelay: TimeSpan.FromMilliseconds(10), observationInterval: TimeSpan.FromMilliseconds(10));
+    var workers = Enum.GetValues<ExternalPhase>().Select(phase => new ExternalActionWorker(external, outputScope, service, phase, policy)).ToArray();
+    while (true)
+    {
+        foreach (var worker in workers) await worker.RunOnceAsync(ct);
+        var records = await Task.WhenAll(actions.Select(a => external.FindActionAsync(a.Scope, a.Id, ct)));
+        if (records.All(r => r?.Observation == ExternalObservationState.Succeeded)) break;
+        await Task.Delay(15, ct);
+    }
+    // Application-owned mapping and SQL. A failed status transaction must not resend the request.
+    var failedStatusWrites = 0;
+    var projection = new ExternalResultWorker<TSession>(jobs, resultTarget, async (update, session, token) =>
+    {
+        var account = partnerContract.Decode(update.Action.CopyPayload());
+        await using var command = commandFactory(session);
+        command.CommandText = $"UPDATE {schema}.partner_status SET status=@status, reference=@reference WHERE account_id=@id";
+        AddParameter(command, "status", update.Observation == ExternalObservationState.Succeeded ? "active" : update.State.ToString());
+        AddParameter(command, "reference", update.ProviderReference ?? ""); AddParameter(command, "id", account.AccountId);
+        if (await command.ExecuteNonQueryAsync(token) != 1) throw new InvalidOperationException("Application row missing.");
+        if (Interlocked.CompareExchange(ref failedStatusWrites, 1, 0) == 0) throw new IOException("Injected failure after status SQL.");
+    }, new(initialDelay: TimeSpan.FromMilliseconds(1), jitterRatio: 0), new(maximumConcurrency: 2, idleDelay: TimeSpan.FromMilliseconds(10)));
+    using var projectionStop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+    var projecting = projection.RunAsync(projectionStop.Token);
+    int projectedStatuses;
+    try
+    {
+        while (true)
+        {
+            if (projecting.IsFaulted) await projecting;
+            await using var status = connection.CreateCommand();
+            status.CommandText = $"SELECT COUNT(*) FROM {schema}.partner_status WHERE status='active' AND reference<>''";
+            projectedStatuses = Convert.ToInt32(await status.ExecuteScalarAsync(ct));
+            if (projectedStatuses == 3) break;
+            await Task.Delay(10, ct);
+        }
+    }
+    finally { projectionStop.Cancel(); await projecting; }
+    foreach (var worker in workers) await worker.RunOnceAsync(ct);
+    await using var count = connection.CreateCommand(); count.CommandText = $"SELECT COUNT(*) FROM {schema}.sample_effects";
+    var effects = Convert.ToInt32(await count.ExecuteScalarAsync(ct));
+    if (effects != 9 || actions.Count != 3 || service.Submits != 3) throw new InvalidOperationException("Conservation check failed.");
+    var preparation = await Preparation(jobs, external, connection, commandFactory, sourceFactory, ct);
+    Console.WriteLine(JsonSerializer.Serialize(new { preparation, provider, businessModels = 3, jobs = 6, uniqueEffects = effects, externalActions = actions.Count,
+        service.Submits, service.Lookups, service.Observations, projectedStatuses, failedStatusWrites, allSucceeded = true, syntheticService = true }));
+
+    async Task Domain<T>(string name, T[] items, Func<T, string> key, Func<T, TSession, CancellationToken, Task>? after = null) where T : notnull
+    {
+        var itemContract = Contract<T>(name + "-item");
+        var contract = JsonJobBatches.Contract(name + "-batch", 1, itemContract, maximumItems: 100);
+        var definition = new JobDefinition(new("sample-tenant", schema), name, 1, contract.Name, contract.Version,
+            "handler-v1", "bounded-items-v1"u8, [JobCapabilities.TransactionalHandler, JobCapabilities.TransactionalItems]);
+        await jobs.RegisterAsync(definition, ct);
+        var client = new JsonJobClient<JobBatch<T>>(jobs, definition, contract);
+        var ids = new List<Guid>();
+        for (var n = 0; n < 2; n++)
+        {
+            var batch = new JobBatch<T>(1, items.Skip(n).Take(2).Select(i => new JobBatchItem<T>(key(i), i)).ToArray());
+            var requestId = Guid.NewGuid();
+            var result = await client.SubmitAsync(requestId, "batch-" + n, "sample-backend", batch, cancellationToken: ct);
+            var duplicate = await client.SubmitAsync(requestId, "batch-" + n, "sample-backend", batch, cancellationToken: ct);
+            if (result.OperationId != duplicate.OperationId || duplicate.Status != JobSubmissionStatus.AlreadyAccepted) throw new InvalidOperationException("Request was duplicated.");
+            ids.Add(result.OperationId);
+        }
+        var runner = new JsonJobWorker<JobBatch<T>, TSession>(jobs, definition, contract, async (batch, work, session, token) =>
+        {
+            await JsonJobBatches.ExecuteAsync(definition, batch, itemContract, session, async (item, s, cancel) =>
+            {
+                await using var command = commandFactory(s);
+                command.CommandText = $"INSERT INTO {schema}.sample_effects VALUES(@domain,@key)";
+                var domain = command.CreateParameter(); domain.ParameterName = "domain"; domain.Value = name; command.Parameters.Add(domain);
+                var identity = command.CreateParameter(); identity.ParameterName = "key"; identity.Value = key(item); command.Parameters.Add(identity);
+                await command.ExecuteNonQueryAsync(cancel);
+                if (after is not null) await after(item, s, cancel);
+            }, token);
+        }, options: new(maximumConcurrency: 2, idleDelay: TimeSpan.FromMilliseconds(10)));
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var running = runner.RunAsync(stop.Token);
+        try
+        {
+            while (true)
+            {
+                if (running.IsFaulted) await running;
+                var saved = await Task.WhenAll(ids.Select(id => client.FindAsync(id, ct)));
+                if (saved.Any(r => r?.State == WorkState.DeadLetter)) throw new InvalidOperationException("Job handler failed.");
+                if (saved.All(r => r?.State == WorkState.Completed)) break;
+                await Task.Delay(10, ct);
+            }
+        }
+        finally { stop.Cancel(); await running; }
+    }
+}
+
+async Task<PreparationEvidence> Preparation<TSession>(ITransactionalJobStore<TSession> jobs, IExternalActionStore external,
+    DbConnection connection, Func<TSession,DbCommand> commandFactory, Func<JsonMessageContract<SelectedRecord>,ISnapshotSource> sourceFactory,
+    CancellationToken ct) where TSession : IJobItemSession, IExternalActionSession, IExternalResultSession, IWorkflowSignalSession
+{
+    var snapshots=(ISnapshotStore)jobs; var workflows=(IWorkflowStore)jobs; var notices=(IExternalObservationStore)external;
+    await using(var setup=connection.CreateCommand())
+    {
+        setup.CommandText=$"CREATE TABLE {schema}.source_records(id int NOT NULL, category int NOT NULL); CREATE TABLE {schema}.selected_status(id int PRIMARY KEY,status varchar(32) NOT NULL)";
+        await setup.ExecuteNonQueryAsync(ct);
+        // Duplicates represent repeated source transactions for one selected business record.
+        setup.CommandText=$"INSERT INTO {schema}.source_records VALUES "+string.Join(',',Enumerable.Range(1,205).Select(i=>$"({i},7)").Concat(["(3,7)","(999,8)"])); await setup.ExecuteNonQueryAsync(ct);
+    }
+    var preparationClock=System.Diagnostics.Stopwatch.StartNew();
+    var itemContract=Contract<SelectedRecord>("selected-record"); var batchContract=JsonJobBatches.Contract("selected-batch",1,itemContract);
+    var job=new JobDefinition(new("selection-tenant",schema),"apply-selected",1,batchContract.Name,1,"v1",[1],[JobCapabilities.TransactionalHandler,JobCapabilities.TransactionalItems]); await jobs.RegisterAsync(job,ct);
+    var definition=new SnapshotDefinition(job,"selection","replica","v1",batchSize:100,delivery:SnapshotDelivery.Cdc,route:new("kafka","local","v1","selected"));
+    var request=new SnapshotRequest(definition,Guid.NewGuid(),"selection-1","backend","7"u8); await snapshots.CreateSnapshotAsync(request,ct);
+    await new SnapshotWorker<SelectedRecord>(snapshots,definition,sourceFactory(itemContract),itemContract).RunOnceAsync(request,ct);
+    var captureMilliseconds=preparationClock.Elapsed.TotalMilliseconds;
+    var captured=(await snapshots.FindSnapshotAsync(definition,request.Id,ct))!;
+    var batches=await ((ISnapshotMaintenance)jobs).ReadSnapshotBatchesAsync(definition,request.Id,cancellationToken:ct);
+    if(captured.ItemCount!=205 || batches.Count!=3) throw new InvalidOperationException("Selection or batching lost records.");
+    var receiver=new SnapshotBatchReceiver(jobs,job);
+    foreach(var batch in batches) { await receiver.AcceptAsync(SnapshotBatchCodec.Encode(batch),ct); await receiver.AcceptAsync(SnapshotBatchCodec.Encode(batch),ct); }
+    var scope=new ProducerScope("selection-tenant","selected-service"); var target=new ExternalResultTarget(scope,"selected-status","v1");
+    var flow=new WorkflowDefinition(job.Scope,"selection-completion",1,[new("all-results",WorkflowStepKind.Signal),new("finish",WorkflowStepKind.Delay,[new("all-results","done")])]);
+    var flowRequest=new WorkflowRequest(flow,Guid.NewGuid(),"selection-1","backend",new Dictionary<string,byte[]>()); await workflows.CreateWorkflowAsync(flowRequest,ct);
+    var actionCount=0;
+    while(await jobs.ClaimNextAsync(job.WorkScope,Guid.NewGuid(),TimeSpan.FromMinutes(1),ct) is { } claim)
+    {
+        var result=await jobs.ExecuteAsync(claim,async(_,bytes,session,token)=>
+        {
+            await JsonJobBatches.ExecuteAsync(job,batchContract.Decode(bytes),itemContract,session,async(item,s,cancel)=>
+            {
+                await using var command=commandFactory(s); command.CommandText=$"INSERT INTO {schema}.selected_status VALUES(@id,'queued')"; AddParameter(command,"id",item.Id); await command.ExecuteNonQueryAsync(cancel);
+                var id=new Guid(Convert.FromHexString(StableHash.Of("selection-service/v1",scope.Id,item.Id.ToString(System.Globalization.CultureInfo.InvariantCulture))).AsSpan(0,16));
+                await s.ExternalActions.EnqueueAsync(new(scope,id,"callback-service","v1",itemContract.Encode(item),TimeSpan.FromMinutes(2)),target,cancel); actionCount++;
+            },token);
+        },new(),ct);
+        if(result.Status!=ExecutionStatus.Completed) throw new InvalidOperationException("Selected item handler failed.");
+    }
+    var service=new CallbackService(notices); var limit=new ExternalCallLimit("selection-tenant","synthetic-service",1000,TimeSpan.FromMinutes(1),2);
+    var sender=new ExternalActionWorker(external,scope,service,ExternalPhase.Submit,limit,(IExternalCallLimiter)external);
+    var reports=new ExternalNoticeWorker(notices,scope,service.Binding,service.BindingVersion);
+    for(var i=0;i<205;i++) { await sender.RunOnceAsync(ct); await reports.RunOnceAsync(ct); }
+    var signalId=Guid.NewGuid();
+    var projection=new ExternalResultWorker<TSession>(jobs,target,async(update,session,token)=>
+    {
+        var item=itemContract.Decode(update.Action.CopyPayload()); await using var command=commandFactory(session);
+        command.CommandText=$"UPDATE {schema}.selected_status SET status=@status WHERE id=@id"; AddParameter(command,"id",item.Id);
+        AddParameter(command,"status",update.Observation==ExternalObservationState.Succeeded?"fulfilled":"accepted"); await command.ExecuteNonQueryAsync(token);
+        command.Parameters.Clear(); command.CommandText=$"SELECT COUNT(*) FROM {schema}.selected_status WHERE status='fulfilled'";
+        if(Convert.ToInt32(await command.ExecuteScalarAsync(token))==205)
+            await session.WorkflowSignals.SignalAsync(new(job.Scope,flowRequest.Id,"all-results",signalId,"done","result-handler"),token);
+    },options:new(maximumConcurrency:1,idleDelay:TimeSpan.FromMilliseconds(10)));
+    using var stop=CancellationTokenSource.CreateLinkedTokenSource(ct); var running=projection.RunAsync(stop.Token); WorkflowProgress progress;
+    try
+    {
+        do { if(running.IsFaulted) await running; progress=await workflows.AdvanceWorkflowAsync(flow,flowRequest.Id,ct); if(progress.State!=WorkflowState.Completed) await Task.Delay(10,ct); } while(progress.State!=WorkflowState.Completed);
+    }
+    finally { stop.Cancel(); await running; }
+    if(actionCount!=205 || service.Submits!=205) throw new InvalidOperationException("Selection conservation failed.");
+    return new(captured.ItemCount,batches.Count,actionCount,service.Submits,progress.State.ToString(),true,captureMilliseconds,preparationClock.Elapsed.TotalMilliseconds);
+}
+
+static void AddParameter(DbCommand command, string name, object value)
+{
+    var parameter = command.CreateParameter(); parameter.ParameterName = name; parameter.Value = value; command.Parameters.Add(parameter);
+}
+
+static JsonMessageContract<T> Contract<T>(string name) where T : notnull => new(name, 1, _ => 1, _ => { });
+sealed record Document(string Id, string Index, long Revision);
+sealed record Inventory(string Sku, string Warehouse, decimal Quantity);
+sealed record PartnerAccount(string AccountId, string Plan, string Locale);
+
+// Synthetic service: acceptance succeeds but every send response is lost; lookup resolves it.
+sealed class DemoPartnerService : IExternalServiceAdapter
+{
+    private readonly HashSet<Guid> _accepted = [];
+    public int Submits { get; private set; }
+    public int Lookups { get; private set; }
+    public int Observations { get; private set; }
+    public string Binding => "partner-api";
+    public string BindingVersion => "v1";
+    public bool CanReconcile => true;
+    public bool CanObserve => true;
+    public Task<ExternalResult> SubmitAsync(ExternalAction action, CancellationToken ct)
+    {
+        Submits++; if (!_accepted.Add(action.Id)) throw new InvalidOperationException("Duplicate remote send!");
+        throw new IOException("Accepted remotely; reply was lost.");
+    }
+    public Task<ExternalResult> ReconcileAsync(ExternalActionRecord action, CancellationToken ct)
+    {
+        Lookups++;
+        return Task.FromResult(new ExternalResult(_accepted.Contains(action.Action.Id) ? ExternalResultKind.Accepted : ExternalResultKind.Unknown,
+            "lookup", action.Action.Id.ToString("D")));
+    }
+    public Task<ExternalResult> ObserveAsync(ExternalActionRecord action, CancellationToken ct)
+    {
+        Observations++;
+        return Task.FromResult(new ExternalResult(ExternalResultKind.Succeeded, "fulfilled"));
+    }
+}
+
+sealed record SelectedRecord(int Id);
+sealed record PreparationEvidence(long Selected,int Batches,int Actions,int Submits,string Workflow,bool SyntheticCdc,double CaptureMilliseconds,double TotalMilliseconds);
+sealed class CallbackService(IExternalObservationStore notices) : ICallbackExternalServiceAdapter
+{
+    public int Submits { get; private set; }
+    public string Binding=>"callback-service"; public string BindingVersion=>"v1"; public bool CanReconcile=>false; public bool CanObserve=>false;
+    public async Task<ExternalResult> SubmitAsync(ExternalAction action,CancellationToken ct)
+    {
+        Submits++;
+        var report=new ExternalObservationNotice(action.Scope,action.Id,action.Id,Binding,BindingVersion,new(ExternalResultKind.Succeeded,"fulfilled",action.Id.ToString("D")),1);
+        await notices.RecordNoticeAsync(report,ct); await notices.RecordNoticeAsync(report,ct);
+        return new(ExternalResultKind.Accepted,"accepted",action.Id.ToString("D"));
+    }
+    public Task<ExternalResult> ReconcileAsync(ExternalActionRecord action,CancellationToken ct)=>throw new NotSupportedException();
+    public Task<ExternalResult> ObserveAsync(ExternalActionRecord action,CancellationToken ct)=>throw new NotSupportedException();
+}

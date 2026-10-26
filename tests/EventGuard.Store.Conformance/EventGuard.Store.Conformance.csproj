@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/EventGuard.Core/EventGuard.Core.csproj" />
+    <PackageReference Include="xunit" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

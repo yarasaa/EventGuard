@@ -1,0 +1,44 @@
+@page "/workers"
+@model WorkersModel
+@using EventGuard.Operations
+@{ ViewData["Title"] = "Workers"; }
+<div class="page-heading"><div><div class="eyebrow">APPLICATION RUNTIME</div><h1>Workers</h1><p>Observed consumer and outbox loops across your application instances.</p></div><a class="button" asp-page="/WorkerHistory" asp-route-group="@Model.Group">View history</a><a class="button" asp-page="/Workers" asp-route-group="@Model.Group" asp-route-state="@Model.State" asp-route-p="@Model.View.Page">↻ Refresh</a></div>
+@if (Model.View.Snapshot.Availability == FleetAvailability.Disabled)
+{
+    <section class="notice"><h2>Connect your monitoring source</h2><p>Configure a Prometheus query endpoint and worker groups in your dashboard host. Export the EventGuard.Runtime meter from your applications, and label scrape targets with this dashboard's store ID.</p><p>Your application continues processing independently. Monitoring access uses the separate store monitoring permission.</p></section>
+}
+else
+{
+    <form method="get" class="worker-filters card">
+        <label>Worker group<select name="group" aria-label="Worker group"><option value="">All groups</option>@foreach (var g in Model.Groups) { <option value="@g.Key" selected="@(Model.Group == g.Key)">@g.Label · @g.Component</option> }</select></label>
+        <label>Observation<select name="state" aria-label="Observation"><option value="">All observations</option>@foreach (var s in Enum.GetValues<WorkerCondition>()) { <option value="@s" selected="@(Model.State == s.ToString())">@DashboardWorkers.State(s)</option> }</select></label>
+        <button class="button primary" type="submit">Apply filters</button><a class="button" asp-page="/Workers">Reset</a>
+    </form>
+    @if (Model.Groups.Any(g => g.ExpectedInstances.HasValue))
+    {
+        <section class="card"><div class="card-heading"><h2>Expected inventory</h2><span class="muted">Configured in your dashboard host</span></div><div class="table-scroll"><table><thead><tr><th>Group</th><th>Expected instances</th><th>Fresh targets</th><th>Running instances</th><th>Below expected running</th></tr></thead><tbody>
+        @foreach (var g in Model.Groups) { var row = WorkerInventory.From(Model.View.Snapshot, g.Key, g.ExpectedInstances); <tr><td>@g.Label · @g.Component</td><td>@(row.Expected?.ToString() ?? "Not configured")</td><td>@(row.Observed?.ToString() ?? "Unknown")</td><td>@(row.Running?.ToString() ?? "Unknown")</td><td>@(row.Missing?.ToString() ?? "Unknown")</td></tr> }
+        </tbody></table></div><p class="data-note">Expected counts come from configuration and survive dashboard restarts. Scale-to-zero uses an explicit expected count of zero. Missing telemetry does not authorize replay or prove a stopped process.</p></section>
+    }
+    @if (Model.View.Snapshot.Availability == FleetAvailability.Unavailable)
+    {
+        <section class="notice"><h2>Monitoring source unavailable</h2><p>No current worker state can be confirmed. This does not mean workers have stopped or queues are empty. Check source access, query limits and monitoring configuration.</p></section>
+    }
+    else
+    {
+        <section class="card"><div class="card-heading"><h2>Worker observations <span class="muted">· @Model.View.Total</span></h2><span class="muted">Read · @Display.Time(Model.View.Snapshot.CheckedAt) UTC</span></div>
+        <div class="table-scroll"><table><thead><tr><th>Worker / instance</th><th>Observation</th><th>Loops / active cycles</th><th>Last cycle · UTC</th><th>Last scrape · UTC</th><th>Confirmed / s</th><th>Retry / s</th><th>Unconfirmed / s</th></tr></thead><tbody>
+        @foreach (var row in Model.View.Rows)
+        {
+            <tr><td><strong>@Model.GroupLabel(row.Group)</strong><div class="muted">@Model.GroupComponent(row.Group)</div><code class="worker-instance">@(row.Instance.Length == 0 ? "No target observed" : row.Instance)</code></td><td><span class="worker-state @(row.Condition == WorkerCondition.Running ? "running" : "attention")">@DashboardWorkers.State(row.Condition)</span></td><td>@(row.RunningLoops?.ToString() ?? "—") / @(row.ActiveCycles?.ToString() ?? "—")</td><td>@(row.LastCycleAt is { } last ? Display.Time(last) : "—")</td><td>@(row.SampledAt is { } sample ? Display.Time(sample) : "—")</td><td>@(row.Rates is { } rates ? (Model.GroupComponent(row.Group) == "consumer" ? rates.CompletedPerSecond : rates.PublishedPerSecond).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) : "—")</td><td>@(row.Rates?.RetryPerSecond.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) ?? "—")</td><td>@(row.Rates?.UnconfirmedPerSecond.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) ?? "—")</td></tr>
+        }
+        @if (Model.View.Rows.Count == 0) { <tr><td colspan="8">No observations match these filters.</td></tr> }
+        </tbody></table></div>
+        <div class="worker-pagination"><span class="muted">Page @Model.View.Page · 25 observations per page</span><div>
+        @if (Model.View.Page > 1) { <a class="button" asp-page="/Workers" asp-route-group="@Model.Group" asp-route-state="@Model.State" asp-route-p="@(Model.View.Page - 1)">← Previous</a> }
+        @if (Model.View.Page * 25 < Model.View.Total) { <a class="button" asp-page="/Workers" asp-route-group="@Model.Group" asp-route-state="@Model.State" asp-route-p="@(Model.View.Page + 1)">Next →</a> }
+        </div></div></section>
+    }
+    <p class="data-note">Freshness window: @Model.StaleSeconds s · Progress threshold: @Model.ProgressSeconds s · Source checks share a five-second cache. Disappeared instances remain visible for up to ten minutes in this dashboard instance.</p>
+}
+<section class="notice"><h2>What these observations mean</h2><p>Running loops means a RunAsync loop is present with recent cycle activity. A cycle may be an idle poll or a failed attempt; it does not prove successful work or an empty queue. Progress overdue can indicate a long-running operation or a stalled loop. No running loops does not exclude manual dispatch calls.</p><p>Scrape failure and stale data describe the monitoring connection. They never release a lease, replay a message or declare a business operation failed. Rates use a 60-second window and remain unavailable during warm-up, restarts or missing data. Confirmed means observed consumer completion or outbox publication settlement; retries and idle polls are excluded. These are process observations, not unique business throughput or a capacity benchmark.</p></section>

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../EventGuard.Operations.Prometheus/EventGuard.Operations.Prometheus.csproj" />
+    <ProjectReference Include="../EventGuard.Operations.Replay.SqlServer/EventGuard.Operations.Replay.SqlServer.csproj" />
+    <ProjectReference Include="../EventGuard.Operations.Replay.PostgreSql/EventGuard.Operations.Replay.PostgreSql.csproj" />
+    <ProjectReference Include="../EventGuard.Operations/EventGuard.Operations.csproj" />
+    <ProjectReference Include="../EventGuard.Operations.PostgreSql/EventGuard.Operations.PostgreSql.csproj" />
+    <ProjectReference Include="../EventGuard.Operations.SqlServer/EventGuard.Operations.SqlServer.csproj" />
+    <PackageReference Include="prometheus-net" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+  </ItemGroup>
+</Project>

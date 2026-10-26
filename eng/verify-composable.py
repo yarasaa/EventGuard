@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+"""Run three application-owned models using only candidate NuGet packages and synthetic service behavior."""
+import argparse
+import json
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import xml.etree.ElementTree as ET
+from xml.sax.saxutils import escape
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--packages', type=Path, required=True)
+    parser.add_argument('--output', type=Path, required=True)
+    args = parser.parse_args()
+    packages, output = args.packages.resolve(), args.output.resolve()
+    if output.exists():
+        parser.error('Choose a new output directory; evidence is not overwritten.')
+    version = ET.parse(ROOT / 'Directory.Build.props').findtext('.//Version')
+    libraries = ['EventGuard.Core', 'EventGuard.Runtime', 'EventGuard.PostgreSql', 'EventGuard.SqlServer']
+    if any(not (packages / f'{p}.{version}.nupkg').is_file() for p in libraries):
+        parser.error('Pack the current version first.')
+    output.mkdir(parents=True)
+    env = {k: v for k, v in os.environ.items() if not k.startswith(('DOTNET_', 'EVENTGUARD_', 'MSBUILD', 'NUGET_'))}
+    dotnet = ROOT / '.tools/dotnet/dotnet'
+    env.update(DOTNET_ROOT=str(dotnet.parent), DOTNET_CLI_HOME=str(output / 'cli-home'), NUGET_PACKAGES=str(output / 'nuget-cache'),
+               DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1', DOTNET_CLI_TELEMETRY_OPTOUT='1')
+    report = {'version': version, 'packageOnly': True, 'freshCache': True, 'independentHumanTrial': False,
+              'realExternalService': False, 'cases': [], 'passed': False}
+
+    def run(command, cwd):
+        completed = subprocess.run([str(x) for x in command], cwd=cwd, env=env, capture_output=True, text=True, timeout=300)
+        with (output / 'commands.log').open('a') as log:
+            log.write(completed.stdout + '\n' + completed.stderr + '\n')
+        if completed.returncode:
+            raise RuntimeError('Composition verification failed; see commands.log.')
+        return completed.stdout
+
+    try:
+        with tempfile.TemporaryDirectory(prefix='eventguard-composable-') as folder:
+            root = Path(folder)
+            (root / 'NuGet.Config').write_text(f'<configuration><packageSources><clear/><add key="candidate" value="{escape(str(packages))}"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources></configuration>')
+            for framework in ['net8.0', 'net10.0']:
+                project = root / framework; project.mkdir()
+                refs = ''.join(f'<PackageReference Include="{name}" Version="{version}"/>' for name in libraries)
+                (project / 'Composition.csproj').write_text(f'<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>{framework}</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup><ItemGroup>{refs}</ItemGroup></Project>')
+                (project / 'Program.cs').write_text((ROOT / 'eng/fixtures/composable-execution/Program.cs.txt').read_text())
+                run([dotnet, 'build', '-c', 'Release', '-p:UseSharedCompilation=false'], project)
+                for provider in ['postgresql', 'sqlserver']:
+                    result = run([dotnet, project / f'bin/Release/{framework}/Composition.dll', provider], project)
+                    case = json.loads(next(line for line in result.splitlines() if line.startswith('{')))
+                    case['framework'] = framework
+                    report['cases'].append(case)
+        report['passed'] = len(report['cases']) == 4 and all(c['allSucceeded'] and c['uniqueEffects'] == 9 and c['Submits'] == 3 and c['projectedStatuses'] == 3 and c['failedStatusWrites'] == 1 and c['preparation']['Selected'] == 205 and c['preparation']['Batches'] == 3 and c['preparation']['Actions'] == c['preparation']['Submits'] == 205 and c['preparation']['Workflow'] == 'Completed' for c in report['cases'])
+    finally:
+        (output / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
+    print(json.dumps(report, indent=2))
+    return 0 if report['passed'] else 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
