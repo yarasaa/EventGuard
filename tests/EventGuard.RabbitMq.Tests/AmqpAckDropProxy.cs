@@ -12,13 +12,15 @@ internal sealed class AmqpAckDropProxy : IAsyncDisposable
     private readonly Task _run;
     private readonly bool _publisherConfirm;
     private readonly bool _disconnect;
+    private readonly TimeSpan _forwardedConfirmDelay;
     private int _dropped;
     public TaskCompletionSource Dropped { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public int Port => ((IPEndPoint)_listener.LocalEndpoint).Port;
-    public AmqpAckDropProxy(bool publisherConfirm, bool disconnect = true)
+    public AmqpAckDropProxy(bool publisherConfirm, bool disconnect = true, TimeSpan? forwardedConfirmDelay = null)
     {
         _publisherConfirm = publisherConfirm;
         _disconnect = disconnect;
+        _forwardedConfirmDelay = forwardedConfirmDelay ?? TimeSpan.Zero;
         _listener.Start();
         _run = AcceptAsync();
     }
@@ -41,6 +43,9 @@ internal sealed class AmqpAckDropProxy : IAsyncDisposable
         {
             try
             {
+                // Only the selected protocol fault should delay traffic, not Nagle buffering.
+                client.NoDelay = true;
+                upstream.NoDelay = true;
                 await upstream.ConnectAsync(IPAddress.Loopback, 5673, stop.Token);
                 var requests = ForwardAsync(client.GetStream(), upstream.GetStream(), fromClient: true, stop.Token);
                 var replies = ForwardAsync(upstream.GetStream(), client.GetStream(), fromClient: false, stop.Token);
@@ -72,14 +77,16 @@ internal sealed class AmqpAckDropProxy : IAsyncDisposable
             var payload = new byte[size + 1];
             await input.ReadExactlyAsync(payload, ct);
             if (payload[^1] != 0xce) throw new InvalidDataException("Invalid AMQP frame end.");
-            if (fromClient != _publisherConfirm && header[0] == 1 && size >= 4
-                && BinaryPrimitives.ReadUInt16BigEndian(payload) == 60 && BinaryPrimitives.ReadUInt16BigEndian(payload.AsSpan(2)) == 80
-                && Interlocked.CompareExchange(ref _dropped, 1, 0) == 0)
+            var targetedAck = fromClient != _publisherConfirm && header[0] == 1 && size >= 4
+                && BinaryPrimitives.ReadUInt16BigEndian(payload) == 60 && BinaryPrimitives.ReadUInt16BigEndian(payload.AsSpan(2)) == 80;
+            if (targetedAck && Interlocked.CompareExchange(ref _dropped, 1, 0) == 0)
             {
                 Dropped.TrySetResult();
                 if (_disconnect) return;
                 continue;
             }
+            if (targetedAck && _publisherConfirm && _forwardedConfirmDelay > TimeSpan.Zero)
+                await Task.Delay(_forwardedConfirmDelay, ct);
             await output.WriteAsync(header, ct);
             await output.WriteAsync(payload, ct);
         }

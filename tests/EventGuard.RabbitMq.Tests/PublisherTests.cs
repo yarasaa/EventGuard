@@ -168,14 +168,29 @@ public sealed class PublisherTests(BrokerFixture broker) : IClassFixture<BrokerF
     public async Task Confirm_timeout_is_unknown_and_a_fresh_channel_can_publish_again()
     {
         var queue = await broker.QueueAsync();
-        await using var proxy = new AmqpAckDropProxy(publisherConfirm: true, disconnect: false);
+        await using var proxy = new AmqpAckDropProxy(publisherConfirm: true, disconnect: false,
+            forwardedConfirmDelay: TimeSpan.FromMilliseconds(400));
         await using var connection = await RabbitMqConnection.OpenAsync(BrokerFixture.Factory(proxy.Port));
-        await using var publisher = new RabbitMqPublisher(connection, "local", "v1", channelCount: 1, publishTimeout: TimeSpan.FromMilliseconds(250));
+        // Exercise the real deadline without requiring healthy channel setup and confirms
+        // to finish inside a 250 ms performance budget on a shared CI runner.
+        await using var publisher = new RabbitMqPublisher(connection, "local", "v1", channelCount: 1, publishTimeout: TimeSpan.FromSeconds(5));
         var message = BrokerFixture.Message(queue);
-        Assert.Equal(PublishStatus.Unknown, (await publisher.PublishAsync(message)).Status);
-        await proxy.Dropped.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.Equal(PublishStatus.Accepted, (await publisher.PublishAsync(message)).Status);
+        var first = publisher.PublishAsync(message);
+        await proxy.Dropped.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var unknown = await first.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(PublishStatus.Unknown, unknown.Status);
+        Assert.Equal("rabbitmq-confirm-unknown", unknown.ReasonCode);
+        var recovered = await publisher.PublishAsync(message).WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(PublishStatus.Accepted, recovered.Status);
+        Assert.Equal("rabbitmq-confirmed", recovered.ReasonCode);
         Assert.Equal(2u, (await broker.Admin.QueueDeclarePassiveAsync(queue)).MessageCount);
+        for (var i = 0; i < 2; i++)
+        {
+            var received = await broker.Admin.BasicGetAsync(queue, true);
+            Assert.NotNull(received);
+            Assert.Equal(message.MessageId.ToString("D"), received.BasicProperties.MessageId);
+            Assert.Equal(message.CopyPayload(), received.Body.ToArray());
+        }
     }
 
     [Fact]
