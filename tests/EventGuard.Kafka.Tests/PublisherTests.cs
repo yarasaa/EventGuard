@@ -39,11 +39,14 @@ public sealed class PublisherTests(BrokerFixture broker) : IClassFixture<BrokerF
         Assert.Equal(1, await db.CountAsync("works"));
     }
 
-    [Fact]
-    public async Task Parallel_publications_preserve_every_message_identity()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    [InlineData(32)]
+    public async Task Parallel_publications_preserve_every_message_identity(int maximumInFlight)
     {
         var topic = await broker.TopicAsync(3);
-        await using var publisher = new KafkaPublisher(BrokerFixture.ProducerConfig(), "local", "v1", maximumInFlight: 3);
+        await using var publisher = new KafkaPublisher(BrokerFixture.ProducerConfig(), "local", "v1", maximumInFlight);
         var messages = Enumerable.Range(0, 48).Select(_ => BrokerFixture.Message(topic, key: "same-key")).ToArray();
         Assert.All(await Task.WhenAll(messages.Select(m => publisher.PublishAsync(m))), r => Assert.Equal(PublishStatus.Accepted, r.Status));
         using var reader = BrokerFixture.Reader(broker.Group());
@@ -59,6 +62,8 @@ public sealed class PublisherTests(BrokerFixture broker) : IClassFixture<BrokerF
         }
         Assert.Equal(messages.Select(m => m.MessageId).Order(), ids.Order());
         Assert.Single(partitions);
+        Assert.Equal(messages.Length, Enumerable.Range(0, 3).Sum(p =>
+            reader.QueryWatermarkOffsets(new(topic, p), TimeSpan.FromSeconds(5)).High.Value));
     }
 
     [Theory]

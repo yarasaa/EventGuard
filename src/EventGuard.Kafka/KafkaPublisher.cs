@@ -19,6 +19,13 @@ public sealed class KafkaPublisher : IOutboundTransport, IAsyncDisposable
     public string ConfigurationVersion { get; }
 
     public KafkaPublisher(ProducerConfig configuration, string bindingName, string configurationVersion, int maximumInFlight = 32)
+        : this(configuration, bindingName, configurationVersion, maximumInFlight,
+            config => new ProducerBuilder<byte[], byte[]>(config).SetLogHandler((_, _) => { }).Build())
+    {
+    }
+
+    internal KafkaPublisher(ProducerConfig configuration, string bindingName, string configurationVersion, int maximumInFlight,
+        Func<ProducerConfig, IProducer<byte[], byte[]>> createProducer)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         if (maximumInFlight is < 1 or > 1024) throw new ArgumentOutOfRangeException(nameof(maximumInFlight));
@@ -38,12 +45,15 @@ public sealed class KafkaPublisher : IOutboundTransport, IAsyncDisposable
         config.AllowAutoCreateTopics = false;
         config.MessageTimeoutMs ??= 10000;
         if (config.MessageTimeoutMs is <= 0 or > 3600000) throw new ArgumentException("Use a finite delivery timeout of at most one hour.", nameof(configuration));
-        config.QueueBufferingMaxMessages ??= maximumInFlight;
+        // librdkafka decrements native queue accounting after its delivery callback returns.
+        // Our continuation can release an application slot before that native cleanup runs.
+        // Reserve one native slot for the completing report; _slots still bounds active sends.
+        config.QueueBufferingMaxMessages ??= maximumInFlight + 1;
         config.QueueBufferingMaxKbytes ??= 8192;
         _slots = new(maximumInFlight, maximumInFlight);
         _capacity = maximumInFlight;
         // Native logs are not a safe application logging contract. Errors are returned through delivery reports.
-        _producer = new ProducerBuilder<byte[], byte[]>(config).SetLogHandler((_, _) => { }).Build();
+        _producer = createProducer(config);
     }
 
     public async Task<PublishOutcome> PublishAsync(OutgoingMessage message, CancellationToken cancellationToken = default)
