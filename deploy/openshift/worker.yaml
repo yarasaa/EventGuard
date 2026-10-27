@@ -16,7 +16,7 @@ spec:
       securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: worker
-          image: YOUR_REGISTRY/eventguard-worker:0.1.0-dev.28
+          image: YOUR_REGISTRY/eventguard-worker:0.1.0-dev.29
           args: [run]
           securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
           resources:

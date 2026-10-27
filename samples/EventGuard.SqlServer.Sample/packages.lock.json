@@ -163,20 +163,20 @@
       "eventguard.rabbitmq": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "EventGuard.Core": "[0.1.0-dev.29, )",
           "RabbitMQ.Client": "[7.2.2, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )"
+          "EventGuard.Core": "[0.1.0-dev.29, )"
         }
       },
       "eventguard.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "EventGuard.Core": "[0.1.0-dev.29, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[9.0.21, )"
         }

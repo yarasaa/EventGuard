@@ -72,13 +72,22 @@ def main() -> None:
     readme = (ROOT / "README.md").read_text()
     # The README uses plain English headings without explicit HTML anchors.
     prose = re.sub(r"```.*?```", "", readme, flags=re.S)
+    if re.search(r"<\s*(?:img|a|div|span|details|summary|table)\b", prose, re.I):
+        errors.append("Use Markdown instead of raw HTML in the shared NuGet README.")
     headings = re.findall(r"^#{1,6} (.+)$", prose, re.M)
     anchors = {re.sub(r"[^\w\- ]", "", h.lower()).replace(" ", "-") for h in headings}
     for target in re.findall(r"\]\(([^)]+)\)", prose):
         url = urlsplit(target)
-        if url.scheme or url.netloc:
+        source_prefixes = ("/yarasaa/EventGuard/blob/main/", "/yarasaa/EventGuard/tree/main/")
+        source_prefix = next((p for p in source_prefixes if url.path.startswith(p)), None)
+        if url.netloc == "github.com" and source_prefix is not None:
+            path = ROOT / unquote(url.path[len(source_prefix):])
+        elif url.scheme or url.netloc:
             continue
-        path = ROOT / unquote(url.path) if url.path else ROOT / "README.md"
+        else:
+            path = ROOT / unquote(url.path) if url.path else ROOT / "README.md"
+            if url.path:
+                errors.append(f"Use an absolute GitHub URL for shared NuGet README links: {target}")
         if not path.exists():
             errors.append(f"Missing README link target: {target}")
         if path == ROOT / "README.md" and url.fragment and unquote(url.fragment) not in anchors:

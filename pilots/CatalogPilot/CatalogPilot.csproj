@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup><TargetFrameworks>net8.0;net10.0</TargetFrameworks></PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="EventGuard.Core" Version="0.1.0-dev.28" />
-    <PackageReference Include="EventGuard.Runtime" Version="0.1.0-dev.28" />
-    <PackageReference Include="EventGuard.PostgreSql" Version="0.1.0-dev.28" />
-    <PackageReference Include="EventGuard.RabbitMq" Version="0.1.0-dev.28" />
-    <PackageReference Include="EventGuard.Operations.PostgreSql" Version="0.1.0-dev.28" />
+    <PackageReference Include="EventGuard.Core" Version="0.1.0-dev.29" />
+    <PackageReference Include="EventGuard.Runtime" Version="0.1.0-dev.29" />
+    <PackageReference Include="EventGuard.PostgreSql" Version="0.1.0-dev.29" />
+    <PackageReference Include="EventGuard.RabbitMq" Version="0.1.0-dev.29" />
+    <PackageReference Include="EventGuard.Operations.PostgreSql" Version="0.1.0-dev.29" />
     <PackageReference Include="Npgsql" Version="8.0.9" Condition="'$(TargetFramework)' == 'net8.0'" />
     <PackageReference Include="Npgsql" Version="10.0.3" Condition="'$(TargetFramework)' != 'net8.0'" />
     <PackageReference Include="RabbitMQ.Client" Version="7.2.2" />

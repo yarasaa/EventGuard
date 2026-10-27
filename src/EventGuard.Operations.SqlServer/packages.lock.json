@@ -182,7 +182,7 @@
       "eventguard.operations": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )"
+          "EventGuard.Core": "[0.1.0-dev.29, )"
         }
       }
     },
@@ -367,7 +367,7 @@
       "eventguard.operations": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )"
+          "EventGuard.Core": "[0.1.0-dev.29, )"
         }
       }
     }

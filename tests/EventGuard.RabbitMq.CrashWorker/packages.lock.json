@@ -26,14 +26,14 @@
       "eventguard.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "EventGuard.Core": "[0.1.0-dev.29, )",
           "Npgsql": "[10.0.3, )"
         }
       },
       "eventguard.rabbitmq": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "EventGuard.Core": "[0.1.0-dev.29, )",
           "RabbitMQ.Client": "[7.2.2, )"
         }
       },
@@ -86,14 +86,14 @@
       "eventguard.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "EventGuard.Core": "[0.1.0-dev.29, )",
           "Npgsql": "[8.0.9, )"
         }
       },
       "eventguard.rabbitmq": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "EventGuard.Core": "[0.1.0-dev.29, )",
           "RabbitMQ.Client": "[7.2.2, )"
         }
       },

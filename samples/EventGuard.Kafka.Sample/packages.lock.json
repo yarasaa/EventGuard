@@ -27,20 +27,20 @@
         "type": "Project",
         "dependencies": {
           "Confluent.Kafka": "[2.15.1, )",
-          "EventGuard.Core": "[0.1.0-dev.28, )"
+          "EventGuard.Core": "[0.1.0-dev.29, )"
         }
       },
       "eventguard.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "EventGuard.Core": "[0.1.0-dev.29, )",
           "Npgsql": "[10.0.3, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )"
+          "EventGuard.Core": "[0.1.0-dev.29, )"
         }
       },
       "Confluent.Kafka": {

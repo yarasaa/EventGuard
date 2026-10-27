@@ -371,35 +371,35 @@
       "eventguard.hosting": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Runtime": "[0.1.0-dev.28, )",
+          "EventGuard.Runtime": "[0.1.0-dev.29, )",
           "Microsoft.Extensions.Hosting.Abstractions": "[10.0.12, )"
         }
       },
       "eventguard.hosting.rabbitmq": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Hosting": "[0.1.0-dev.28, )",
-          "EventGuard.RabbitMq": "[0.1.0-dev.28, )"
+          "EventGuard.Hosting": "[0.1.0-dev.29, )",
+          "EventGuard.RabbitMq": "[0.1.0-dev.29, )"
         }
       },
       "eventguard.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "EventGuard.Core": "[0.1.0-dev.29, )",
           "Npgsql": "[10.0.3, )"
         }
       },
       "eventguard.rabbitmq": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "EventGuard.Core": "[0.1.0-dev.29, )",
           "RabbitMQ.Client": "[7.2.2, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )"
+          "EventGuard.Core": "[0.1.0-dev.29, )"
         }
       },
       "Microsoft.Extensions.Hosting.Abstractions": {
@@ -808,35 +808,35 @@
       "eventguard.hosting": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Runtime": "[0.1.0-dev.28, )",
+          "EventGuard.Runtime": "[0.1.0-dev.29, )",
           "Microsoft.Extensions.Hosting.Abstractions": "[8.0.1, )"
         }
       },
       "eventguard.hosting.rabbitmq": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Hosting": "[0.1.0-dev.28, )",
-          "EventGuard.RabbitMq": "[0.1.0-dev.28, )"
+          "EventGuard.Hosting": "[0.1.0-dev.29, )",
+          "EventGuard.RabbitMq": "[0.1.0-dev.29, )"
         }
       },
       "eventguard.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "EventGuard.Core": "[0.1.0-dev.29, )",
           "Npgsql": "[8.0.9, )"
         }
       },
       "eventguard.rabbitmq": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )",
+          "EventGuard.Core": "[0.1.0-dev.29, )",
           "RabbitMQ.Client": "[7.2.2, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.28, )"
+          "EventGuard.Core": "[0.1.0-dev.29, )"
         }
       },
       "Microsoft.Extensions.Hosting.Abstractions": {

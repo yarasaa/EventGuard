@@ -1,6 +1,6 @@
 # EventGuard
 
-<img src="https://raw.githubusercontent.com/yarasaa/EventGuard/main/src/EventGuard.Dashboard/wwwroot/eventguard.png" width="112" height="112" alt="EventGuard: protected event flow" />
+[EventGuard logo](https://raw.githubusercontent.com/yarasaa/EventGuard/main/src/EventGuard.Dashboard/wwwroot/eventguard.png)
 
 Reliable event processing for **.NET 8 and .NET 10**, with PostgreSQL or SQL Server,
 Kafka or RabbitMQ, and an optional operations dashboard.
@@ -10,7 +10,7 @@ writes with processing state, and provides durable retry and recovery requests. 
 it for product synchronization, document indexing, notifications, integrations, or
 other event-driven applications. Your application defines its models and business rules.
 
-**Status:** experimental `0.1.0-dev.28`. The name, API and schema are provisional.
+**Status:** experimental `0.1.0-dev.29`. The name, API and schema are provisional.
 Install the exact preview version from nuget.org, or build from source using the local feed below. The optional modules add
 typed jobs, consistent source snapshots, batches, external-service result handling and durable
 workflows. Your application supplies its business models, queries and service adapters.
@@ -18,7 +18,7 @@ workflows. Your application supplies its business models, queries and service ad
 Base schemas: **PostgreSQL 11 / SQL Server 8**. Optional schemas:
 **Jobs 2 / External actions 4 / Snapshots 1 / Workflows 1**. Enable only the modules you need.
 Local correctness checks have passed; production deployment and capacity qualification remain
-open. See [known limitations](#known-limitations) before adopting. **License:** [MIT](LICENSE).
+open. See [known limitations](#known-limitations) before adopting. **License:** [MIT](https://github.com/yarasaa/EventGuard/blob/main/LICENSE).
 
 ## Start here
 
@@ -72,7 +72,7 @@ with business writes. Start with the path you need rather than configuring every
 | Maintenance | Bounded payload retention and shared tenant admission budgets within one store |
 
 The current adapter set is **Kafka/RabbitMQ × PostgreSQL/SQL Server**. The versioned
-[support matrix](eng/support-matrix.json) records tested server majors, transaction boundaries
+[support matrix](https://github.com/yarasaa/EventGuard/blob/main/eng/support-matrix.json) records tested server majors, transaction boundaries
 and unsupported features; the repository check verifies its framework and schema versions. Interfaces allow
 additional adapters, but an unsupported broker or database is not automatically supported.
 An optional EF Core bridge uses the existing business transaction. Optional static workflow coordination is described below. There is no distributed saga
@@ -118,7 +118,7 @@ account is `eventguard` / `eventguard-local-only`. These settings are for local 
 
 ### 2. Run the product catalog pilot
 
-The [CatalogPilot application](pilots/CatalogPilot) consumes the NuGet packages without
+The [CatalogPilot application](https://github.com/yarasaa/EventGuard/tree/main/pilots/CatalogPilot) consumes the NuGet packages without
 project references. It demonstrates a real end-to-end flow:
 
 ```text
@@ -203,10 +203,10 @@ observe `DeadLetter`, configure that category with
 These are trusted local CLI commands, not unauthenticated HTTP mutation endpoints.
 
 To run a CLI mode on .NET 8, set `PILOT_FRAMEWORK=net8.0`. The default is `net10.0`.
-Pilot configuration and safety guards are in [PilotSettings](pilots/CatalogPilot/Hosting/PilotSettings.cs).
+Pilot configuration and safety guards are in [PilotSettings](https://github.com/yarasaa/EventGuard/blob/main/pilots/CatalogPilot/Hosting/PilotSettings.cs).
 The package-only application can be copied elsewhere by updating its local feed/cache
-paths in [NuGet.Config](pilots/CatalogPilot/NuGet.Config) and the feed root in
-[prepare-restore.py](pilots/CatalogPilot/prepare-restore.py).
+paths in [NuGet.Config](https://github.com/yarasaa/EventGuard/blob/main/pilots/CatalogPilot/NuGet.Config) and the feed root in
+[prepare-restore.py](https://github.com/yarasaa/EventGuard/blob/main/pilots/CatalogPilot/prepare-restore.py).
 The pilot keeps third-party versions and hashes locked. For the six packages built from
 this checkout, restore preparation verifies local archive identities and records their
 hashes in a generated lock under `.artifacts`; NuGet then uses locked mode and a cache
@@ -231,9 +231,9 @@ and preserve any other feeds it needs:
 ```
 
 ```bash
-dotnet add package EventGuard.PostgreSql --version 0.1.0-dev.28
-dotnet add package EventGuard.Runtime --version 0.1.0-dev.28
-dotnet add package EventGuard.RabbitMq --version 0.1.0-dev.28
+dotnet add package EventGuard.PostgreSql --version 0.1.0-dev.29
+dotnet add package EventGuard.Runtime --version 0.1.0-dev.29
+dotnet add package EventGuard.RabbitMq --version 0.1.0-dev.29
 ```
 
 Nuget.org also supplies native-driver and framework dependencies. For repeatable restore,
@@ -261,13 +261,13 @@ package source mapping and an isolated cache for this development feed.
 | `EventGuard.Operations.Prometheus` | Bounded worker observation/history queries |
 
 Core is included transitively by the adapters. The dashboard is a separate ASP.NET Core
-host in [src/EventGuard.Dashboard](src/EventGuard.Dashboard), not an embedded dashboard
+host in [src/EventGuard.Dashboard](https://github.com/yarasaa/EventGuard/tree/main/src/EventGuard.Dashboard), not an embedded dashboard
 NuGet package. All packages target modern .NET 8/10, not .NET Framework 4.x.
 
 ## Hosted worker quick start
 
 This is the recommended starting point for a Worker Service or ASP.NET Core application.
-The [worker template](templates/EventGuard.Worker) separates contracts, handlers,
+The [worker template](https://github.com/yarasaa/EventGuard/tree/main/templates/EventGuard.Worker) separates contracts, handlers,
 configuration and database setup. It consumes packages without project references and
 supports PostgreSQL and SQL Server. The default is a PostgreSQL product projection;
 replace that business model/handler with your own.
@@ -544,8 +544,8 @@ Create `NuGet.Config` in that directory using the [package-source configuration 
 Then install only the packages needed for this consumer:
 
 ```bash
-dotnet add package EventGuard.PostgreSql --version 0.1.0-dev.28
-dotnet add package EventGuard.Runtime --version 0.1.0-dev.28
+dotnet add package EventGuard.PostgreSql --version 0.1.0-dev.29
+dotnet add package EventGuard.Runtime --version 0.1.0-dev.29
 ```
 
 Replace the generated `Program.cs` with this **complete file**:
@@ -699,15 +699,15 @@ The supplied adapters already implement their broker-specific settlement protoco
 To add RabbitMQ to the walkthrough, install `EventGuard.RabbitMq`, provision a durable
 queue, and use `RabbitMqIngress` instead of the sample's `submit` command. Both ingress
 and pump run as supervised tasks in the application host. The pilot's
-[CatalogWorker](pilots/CatalogPilot/Hosting/CatalogWorker.cs) shows the complete composition;
-[ProductContract](pilots/CatalogPilot/Contracts/ProductContract.cs) shows the mapper, and
-[PilotStore](pilots/CatalogPilot/Infrastructure/PilotStore.cs) shows migration and business SQL.
-Kafka composition is in the [Kafka sample](samples/EventGuard.Kafka.Sample/Program.cs).
+[CatalogWorker](https://github.com/yarasaa/EventGuard/blob/main/pilots/CatalogPilot/Hosting/CatalogWorker.cs) shows the complete composition;
+[ProductContract](https://github.com/yarasaa/EventGuard/blob/main/pilots/CatalogPilot/Contracts/ProductContract.cs) shows the mapper, and
+[PilotStore](https://github.com/yarasaa/EventGuard/blob/main/pilots/CatalogPilot/Infrastructure/PilotStore.cs) shows migration and business SQL.
+Kafka composition is in the [Kafka sample](https://github.com/yarasaa/EventGuard/blob/main/samples/EventGuard.Kafka.Sample/Program.cs).
 
 For SQL Server, choose `EventGuard.SqlServer`, `SqlServerDataSource`,
 `SqlServerWorkStore` and `WorkPump<SqlServerSession>`, then implement business SQL for
 that engine. PostgreSQL's `ON CONFLICT` syntax is not portable. The
-[SQL Server sample](samples/EventGuard.SqlServer.Sample/Program.cs) provides the native
+[SQL Server sample](https://github.com/yarasaa/EventGuard/blob/main/samples/EventGuard.SqlServer.Sample/Program.cs) provides the native
 transaction setup. Changing a production broker/store also requires a deliberate
 identity/data migration; switching package names does not migrate existing work.
 
@@ -747,8 +747,8 @@ stores/schemas and deliberate scope configuration for environment isolation.
 `VersionedMessageContract<T>` accepts an explicit allowlist of decoders, validates the
 application model and maps identity from it. Decoding older input into the current model
 preserves the original durable bytes. Unknown versions do not silently become the latest
-version. See the [Kafka contract](samples/EventGuard.Kafka.Sample/Contracts/FileUpdated.cs)
-and [pilot contract](pilots/CatalogPilot/Contracts/ProductContract.cs).
+version. See the [Kafka contract](https://github.com/yarasaa/EventGuard/blob/main/samples/EventGuard.Kafka.Sample/Contracts/FileUpdated.cs)
+and [pilot contract](https://github.com/yarasaa/EventGuard/blob/main/pilots/CatalogPilot/Contracts/ProductContract.cs).
 
 Deduplication does not order distinct events. For last-state projections, use an atomic
 revision comparison in business SQL. Delta operations and ordered workflows need their
@@ -760,7 +760,7 @@ The [complete consumer walkthrough](#your-first-consumer) demonstrates migration
 acceptance, bounded processing and status lookup. `maximumConcurrency` is per process;
 backlog is not loaded into an unbounded task list. With ASP.NET/Worker Service, pass your
 host's shutdown token and supervise ingress, pumps and dispatchers together. The pilot's
-[worker composition](pilots/CatalogPilot/Hosting/CatalogWorker.cs) is a complete broker example.
+[worker composition](https://github.com/yarasaa/EventGuard/blob/main/pilots/CatalogPilot/Hosting/CatalogWorker.cs) is a complete broker example.
 
 The store owns commit. Do not commit/dispose its transaction, swallow transactional
 failures, or open an independent connection for writes that must share the guarantee.
@@ -810,10 +810,11 @@ An expired publication lease may require a repeat send; downstream deduplication
 necessary. Binding changes need a deployment/migration decision, not an envelope rewrite.
 
 Caller-owned ReadCommitted transactions can use `Enlist`; the caller then owns commit
-and business-request idempotency. There is no supplied ORM integration. Complete examples:
-[RabbitMQ](samples/EventGuard.RabbitMq.Sample/Program.cs),
-[Kafka](samples/EventGuard.Kafka.Sample/Program.cs),
-[transactional pilot store](pilots/CatalogPilot/Infrastructure/PilotStore.cs).
+and business-request idempotency. EF Core applications can use the optional
+[shared-transaction bridge](#use-an-existing-ef-core-model). Complete examples:
+[RabbitMQ](https://github.com/yarasaa/EventGuard/blob/main/samples/EventGuard.RabbitMq.Sample/Program.cs),
+[Kafka](https://github.com/yarasaa/EventGuard/blob/main/samples/EventGuard.Kafka.Sample/Program.cs),
+[transactional pilot store](https://github.com/yarasaa/EventGuard/blob/main/pilots/CatalogPilot/Infrastructure/PilotStore.cs).
 
 ## Connect Kafka or RabbitMQ
 
@@ -906,8 +907,8 @@ identity provider through normal ASP.NET configuration. Example `Dashboard` conf
 Supply `Dashboard__ConnectionString` and `Dashboard__ClientSecret` through secrets.
 Use `Provider=SqlServer` for SQL Server. Register outgoing producers in `OutboxScopes`
 with `Key`, `Label`, `Tenant`, `Producer` and optional operation text/permissions.
-See [DashboardOptions](src/EventGuard.Dashboard/Configuration/DashboardOptions.cs)
-for supported settings and [pilot dashboard setup](pilots/CatalogPilot/dashboard.sh)
+See [DashboardOptions](https://github.com/yarasaa/EventGuard/blob/main/src/EventGuard.Dashboard/Configuration/DashboardOptions.cs)
+for supported settings and [pilot dashboard setup](https://github.com/yarasaa/EventGuard/blob/main/pilots/CatalogPilot/dashboard.sh)
 for a complete local configuration. The application's registered scope must match its worker.
 
 ### Authentication and permissions
@@ -1024,7 +1025,7 @@ autoscaler or per-pod ownership registry. Completion/publication observations do
 unique business throughput, an empty queue or a failed worker. `/metrics` uses a separate
 secret `MetricsToken`; the dashboard login cookie does not authorize scraping.
 
-Deployment templates are in [deploy/openshift](deploy/openshift). Build the optional host
+Deployment templates are in [deploy/openshift](https://github.com/yarasaa/EventGuard/tree/main/deploy/openshift). Build the optional host
 image after the Release build with `bash eng/dashboard-image.sh`. Its Docker build context
 is only the published host output. The image supports non-root/arbitrary UID operation;
 the local CRC dashboard/OIDC rehearsal below passed. Supply TLS, OIDC, protected shared keys,
@@ -1159,20 +1160,20 @@ production backup credentials, storage system, external broker recovery or reten
 
 ### Worker and dashboard deployment walkthrough
 
-The checked-in [worker configuration](deploy/openshift/worker-config.yaml) and
-[dashboard configuration](deploy/openshift/dashboard.yaml) use matching production scopes:
+The checked-in [worker configuration](https://github.com/yarasaa/EventGuard/blob/main/deploy/openshift/worker-config.yaml) and
+[dashboard configuration](https://github.com/yarasaa/EventGuard/blob/main/deploy/openshift/dashboard.yaml) use matching production scopes:
 PostgreSql / `eventguard_worker` / `production` / `product-projection` / `catalog` /
 `product.changed`. Change both when adopting a different scope or SQL Server. The image
 examples below target .NET 10; a .NET 8 application needs a matching runtime image.
 
 1. Publish the generated application from its directory, then build its image with the
-   repository's [worker Dockerfile](deploy/Dockerfile.worker). Replace the repository path,
+   repository's [worker Dockerfile](https://github.com/yarasaa/EventGuard/blob/main/deploy/Dockerfile.worker). Replace the repository path,
    image registry and host placeholders. Push images using your normal release pipeline.
 
    ```bash
    dotnet publish -c Release -p:AssemblyName=EventGuardWorker -o ./publish
    docker build -f /absolute/path/to/EventGuard/deploy/Dockerfile.worker \
-     -t YOUR_REGISTRY/eventguard-worker:0.1.0-dev.28 ./publish
+     -t YOUR_REGISTRY/eventguard-worker:0.1.0-dev.29 ./publish
    # From the EventGuard checkout, build the dashboard image:
    bash eng/dashboard-image.sh
    ```
@@ -1194,7 +1195,7 @@ examples below target .NET 10; a .NET 8 application needs a matching runtime ima
    fields. Register `https://eventguard.example.com/signin-oidc` with your identity provider.
    Shared key storage must permit the cluster-assigned UID/group to write and support RWX
    for two replicas; choose a suitable storage class in
-   [dashboard-storage.yaml](deploy/openshift/dashboard-storage.yaml). Plan key/certificate
+   [dashboard-storage.yaml](https://github.com/yarasaa/EventGuard/blob/main/deploy/openshift/dashboard-storage.yaml). Plan key/certificate
    backup and rotation with your platform team. The Service requests its TLS certificate
    from OpenShift's service CA; the key-protection PFX is a different certificate.
 
@@ -1215,8 +1216,8 @@ examples below target .NET 10; a .NET 8 application needs a matching runtime ima
    ```
 
 4. Configure the re-encrypt Route with the actual service CA, using the
-   [Route example](deploy/openshift/route.yaml). The
-   [service CA ConfigMap](deploy/openshift/service-ca.yaml) requests the cluster's CA bundle;
+   [Route example](https://github.com/yarasaa/EventGuard/blob/main/deploy/openshift/route.yaml). The
+   [service CA ConfigMap](https://github.com/yarasaa/EventGuard/blob/main/deploy/openshift/service-ca.yaml) requests the cluster's CA bundle;
    wait for `service-ca.crt` to appear, then place its PEM contents in the Route's
    `destinationCACertificate`. Apply the completed Route and verify HTTPS login,
    scope/data permissions, readiness, a completed sample event and restart behavior.
@@ -1292,11 +1293,11 @@ provider SQL or direct state updates and is not on the worker's synchronous path
 | `eng/` | Pinned bootstrap, build, native verification, packaging and repository checks |
 | `deploy/` | Container and OpenShift deployment templates |
 
-A new store must pass [shared conformance](tests/EventGuard.Store.Conformance) and its
+A new store must pass [shared conformance](https://github.com/yarasaa/EventGuard/tree/main/tests/EventGuard.Store.Conformance) and its
 own real transaction/fault tests. Preserve native locks, durable request identity,
 commit-uncertainty handling and immutable envelopes. New broker adapters must settle
 input only after durable acceptance/permitted quarantine. Add explicit dependency rules
-in [architecture tests](tests/EventGuard.Architecture.Tests) for any production project.
+in [architecture tests](https://github.com/yarasaa/EventGuard/tree/main/tests/EventGuard.Architecture.Tests) for any production project.
 
 ## Typed jobs, batches and external services
 
@@ -1533,12 +1534,12 @@ retention does not erase them.
 
 ### Verify a package-only composition
 
-The [executable fixture](eng/fixtures/composable-execution/Program.cs.txt) uses application-owned
+The [executable fixture](https://github.com/yarasaa/EventGuard/blob/main/eng/fixtures/composable-execution/Program.cs.txt) uses application-owned
 document, inventory and partner-account models with the same primitives. It submits overlapping
 batches, checks unique business writes, simulates a service that accepts each request but loses
 the response, reconciles acceptance, and observes completion. It maps outcomes to an
 application-owned table, injects a failed status transaction and verifies three final statuses
-with exactly three remote submissions. No actual external service is called. The [runner](eng/verify-composable.py) builds outside this checkout with a fresh NuGet
+with exactly three remote submissions. No actual external service is called. The [runner](https://github.com/yarasaa/EventGuard/blob/main/eng/verify-composable.py) builds outside this checkout with a fresh NuGet
 cache and runs PostgreSQL/SQL Server on both target frameworks:
 
 ```bash
@@ -1808,8 +1809,8 @@ are written under `.artifacts/test-results`. Set `EVENTGUARD_PACKAGE_OUTPUT` to 
 an existing local package feed while packaging elsewhere. `eng/build.sh` also accepts
 an optional output-directory argument.
 
-The dev.28 [hosted Ubuntu CI run](https://github.com/yarasaa/EventGuard/actions/runs/40410916848)
-passed **2,084 test cases across .NET 8/10**, all five samples, the four onboarding combinations
+The dev.28 [hosted Ubuntu CI run](https://github.com/yarasaa/EventGuard/actions/runs/40420514525)
+passed **2,094 test cases across .NET 8/10**, all five samples, the four onboarding combinations
 and 26 package-only pilot scenarios.
 The package-only onboarding and composable-execution checks each passed all four combinations
 of framework and store. The latter verifies 205 selected records, 100/100/5 batches, repeated
@@ -1855,7 +1856,7 @@ completed this acceptance step yet.
 
 ### Custom model and node recovery checks
 
-The [custom model check](eng/verify-custom-model.py) builds an application outside this
+The [custom model check](https://github.com/yarasaa/EventGuard/blob/main/eng/verify-custom-model.py) builds an application outside this
 checkout with a new dependency cache and only NuGet references. Its own `DocumentIndexed`
 DTO and handler exercise typed hosting, repeated delivery, and revision 18 followed by 17.
 The optional native backup drill restores to another disposable database, redelivers both
@@ -1869,14 +1870,14 @@ python3 eng/verify-custom-model.py --packages .artifacts/packages \
   --output .artifacts/custom-model-first-run --backup-restore
 ```
 
-The [node recovery drill](eng/verify-node-recovery.py) creates three temporary kind nodes,
+The [node recovery drill](https://github.com/yarasaa/EventGuard/blob/main/eng/verify-node-recovery.py) creates three temporary kind nodes,
 opens a business transaction on one worker, lets its lease expire, then kills that node.
 The surviving worker must commit exactly one effect and outgoing intent after recovery.
 Effects have no uniqueness constraint that could hide a duplicate execution. Restoring the
 killed node must not repeat the effect. The generated cluster and schema are removed.
 
-Publish [the fixture worker](tests/EventGuard.ClusterWorker) with .NET 10, build it using
-[the load runtime Dockerfile](benchmarks/EventGuard.LoadTests/Dockerfile), then run:
+Publish [the fixture worker](https://github.com/yarasaa/EventGuard/tree/main/tests/EventGuard.ClusterWorker) with .NET 10, build it using
+[the load runtime Dockerfile](https://github.com/yarasaa/EventGuard/blob/main/benchmarks/EventGuard.LoadTests/Dockerfile), then run:
 
 ```bash
 python3 eng/verify-node-recovery.py --kind /path/to/kind --kubectl /path/to/kubectl \
@@ -1890,7 +1891,7 @@ HA, database failover or a network partition.
 
 ### Local OpenShift dashboard rehearsal
 
-[The CRC dashboard rehearsal](eng/verify-openshift-dashboard.py) targets only
+[The CRC dashboard rehearsal](https://github.com/yarasaa/EventGuard/blob/main/eng/verify-openshift-dashboard.py) targets only
 `https://api.crc.testing:6443`. It expects the existing `eventguard-local-test` PostgreSQL
 worker fixture, schema `eventguard_crc_verified`, and a completed synthetic product event.
 It creates its own namespace, SELECT-only database identity, pinned Keycloak test realm,
@@ -1923,7 +1924,7 @@ This rehearsal is separate from concurrent worker/dashboard capacity measurement
 
 ## Load experiments
 
-The [load tool](benchmarks/EventGuard.LoadTests) measures real consumer acceptance,
+The [load tool](https://github.com/yarasaa/EventGuard/tree/main/benchmarks/EventGuard.LoadTests) measures real consumer acceptance,
 claim/execution and transactional effects. It has separate preload/backlog and planned
 arrival profiles, bounded buffers/histograms, correctness oracles and failure exits.
 It does not include a broker or external service and cannot establish end-to-end capacity.
@@ -1945,7 +1946,7 @@ must target exactly `eventguard-load-postgres.eventguard-load-NAME.svc:5432`, wi
 The localhost restrictions remain the default; arbitrary remote database hosts are rejected.
 
 To measure inside OpenShift, publish the load tool for .NET 10 and build
-[its Dockerfile](benchmarks/EventGuard.LoadTests/Dockerfile) with only that publish output as
+[its Dockerfile](https://github.com/yarasaa/EventGuard/blob/main/benchmarks/EventGuard.LoadTests/Dockerfile) with only that publish output as
 the build context. Run it in a restricted pod with explicit CPU/memory limits, a writable
 `/results` volume and the connection supplied by a Secret. The image stays idle until the
 measurement command starts. The wrapper below requires an existing load pod and PostgreSQL
@@ -1978,7 +1979,7 @@ bash eng/load-test.sh postgresql .artifacts/arrivals-pg-trial \
   --arrival-rate 50 --arrival-buffer 256 --concurrency 4 --repetitions 1
 ```
 
-See [LoadOptions](benchmarks/EventGuard.LoadTests/LoadOptions.cs) for exact option bounds.
+See [LoadOptions](https://github.com/yarasaa/EventGuard/blob/main/benchmarks/EventGuard.LoadTests/LoadOptions.cs) for exact option bounds.
 A failure to offer the requested arrivals is separate from incorrect processing of admitted
 work. Report both. Do not convert timeouts, incomplete work, repeated effects or failed
 admission into a successful throughput figure. Preserve environment, repetitions and
@@ -2051,7 +2052,7 @@ routing; adding workers alone does not remove a store bottleneck.
 
 ## Contributing and release preparation
 
-`eng/pack.sh` runs the [NuGet content allowlist](eng/verify-package-contents.py) for all 16
+`eng/pack.sh` runs the [NuGet content allowlist](https://github.com/yarasaa/EventGuard/blob/main/eng/verify-package-contents.py) for all 16
 libraries. Only the package metadata, framework assemblies, logo, README and license may ship;
 deployment manifests, samples, tests and source files stay in the repository. A negative
 control proves that an accidental deployment file is rejected. This check is separate from
@@ -2092,7 +2093,7 @@ belong only to disposable fixtures. Review the staged diff before committing and
 force-add ignored local output.
 
 Before changing an already consumed package, retain its original `.nupkg` files and
-run [the API gate](eng/verify-package-api.py) against that explicit baseline:
+run [the API gate](https://github.com/yarasaa/EventGuard/blob/main/eng/verify-package-api.py) against that explicit baseline:
 
 ```bash
 python3 eng/verify-package-api.py --baseline /path/to/previous-packages \
@@ -2115,7 +2116,7 @@ scripts do not commit, push, publish packages or deploy applications.
 
 ### Publish a NuGet preview
 
-The [publication workflow](.github/workflows/publish-nuget.yml) uses
+The [publication workflow](https://github.com/yarasaa/EventGuard/blob/main/.github/workflows/publish-nuget.yml) uses
 [NuGet Trusted Publishing](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing).
 The configured NuGet account is `yarasa`; the GitHub repository owner is `yarasaa`.
 These are different account names. Configure a NuGet trusted publishing policy with:
@@ -2139,7 +2140,7 @@ exchanges GitHub's identity for a short-lived publishing credential.
    Its artifact must contain all 16 packages and `release.json`; older runs without this
    artifact do not qualify. Record the numeric run ID from its Actions URL.
 2. Open **Actions → publish-nuget-preview → Run workflow**, choose `main`, enter that CI
-   run ID and the exact preview version from `Directory.Build.props` (currently `0.1.0-dev.28`).
+   run ID and the exact preview version from `Directory.Build.props` (currently `0.1.0-dev.29`).
    The workflow refuses another commit, another branch, a failed/incomplete CI run,
    pull-request builds, stable versions, missing/extra packages or changed package bytes.
    It downloads the tested packages without rebuilding or repeating the native test suite.
@@ -2173,4 +2174,4 @@ package IDs or prove permission to publish them.
 - No measured million-record backlog, million/s guarantee or general exactly-once external
   delivery. Always validate your own business invariants and deployment profile.
 
-MIT licensed; see [LICENSE](LICENSE). Dependency licenses remain their respective owners'.
+MIT licensed; see [LICENSE](https://github.com/yarasaa/EventGuard/blob/main/LICENSE). Dependency licenses remain their respective owners'.
