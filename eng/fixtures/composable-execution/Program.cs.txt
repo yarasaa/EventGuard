@@ -210,7 +210,9 @@ async Task<PreparationEvidence> Preparation<TSession>(ITransactionalJobStore<TSe
         if(result.Status!=ExecutionStatus.Completed) throw new InvalidOperationException("Selected item handler failed.");
     }
     var service=new CallbackService(notices); var limit=new ExternalCallLimit("selection-tenant","synthetic-service",1000,TimeSpan.FromMinutes(1),2);
-    var sender=new ExternalActionWorker(external,scope,service,ExternalPhase.Submit,limit,(IExternalCallLimiter)external);
+    var sender=new ExternalBatchWorker(external,scope,service,ExternalPhase.Submit,
+        options:new(100,new(maximumConcurrency:1,leaseDuration:TimeSpan.FromMinutes(2)),TimeSpan.FromSeconds(5)),
+        limit:limit,limiter:(IExternalCallLimiter)external);
     var reports=new ExternalNoticeWorker(notices,scope,service.Binding,service.BindingVersion);
     for(var i=0;i<205;i++) { await sender.RunOnceAsync(ct); await reports.RunOnceAsync(ct); }
     var signalId=Guid.NewGuid();
@@ -230,7 +232,7 @@ async Task<PreparationEvidence> Preparation<TSession>(ITransactionalJobStore<TSe
     }
     finally { stop.Cancel(); await running; }
     if(actionCount!=205 || service.Submits!=205) throw new InvalidOperationException("Selection conservation failed.");
-    return new(captured.ItemCount,batches.Count,actionCount,service.Submits,progress.State.ToString(),true,captureMilliseconds,preparationClock.Elapsed.TotalMilliseconds);
+    return new(captured.ItemCount,batches.Count,actionCount,service.Submits,service.Calls,progress.State.ToString(),true,captureMilliseconds,preparationClock.Elapsed.TotalMilliseconds);
 }
 
 static void AddParameter(DbCommand command, string name, object value)
@@ -273,18 +275,25 @@ sealed class DemoPartnerService : IExternalServiceAdapter
 }
 
 sealed record SelectedRecord(int Id);
-sealed record PreparationEvidence(long Selected,int Batches,int Actions,int Submits,string Workflow,bool SyntheticCdc,double CaptureMilliseconds,double TotalMilliseconds);
-sealed class CallbackService(IExternalObservationStore notices) : ICallbackExternalServiceAdapter
+sealed record PreparationEvidence(long Selected,int Batches,int Actions,int Submits,int RemoteCalls,string Workflow,bool SyntheticCdc,double CaptureMilliseconds,double TotalMilliseconds);
+sealed class CallbackService(IExternalObservationStore notices) : IExternalBatchServiceAdapter
 {
     public int Submits { get; private set; }
+    public int Calls { get; private set; }
+    public bool CanReceiveCallbacks=>true;
     public string Binding=>"callback-service"; public string BindingVersion=>"v1"; public bool CanReconcile=>false; public bool CanObserve=>false;
-    public async Task<ExternalResult> SubmitAsync(ExternalAction action,CancellationToken ct)
+    public async Task<IReadOnlyList<ExternalBatchItemResult>> ExecuteAsync(ExternalBatchRequest request,CancellationToken ct)
     {
-        Submits++;
-        var report=new ExternalObservationNotice(action.Scope,action.Id,action.Id,Binding,BindingVersion,new(ExternalResultKind.Succeeded,"fulfilled",action.Id.ToString("D")),1);
-        await notices.RecordNoticeAsync(report,ct); await notices.RecordNoticeAsync(report,ct);
-        return new(ExternalResultKind.Accepted,"accepted",action.Id.ToString("D"));
+        if(request.Phase!=ExternalPhase.Submit) throw new NotSupportedException();
+        Calls++;
+        var results=new List<ExternalBatchItemResult>();
+        foreach(var item in request.Items.Reverse())
+        {
+            var action=item.Action; Submits++;
+            var report=new ExternalObservationNotice(action.Scope,action.Id,action.Id,Binding,BindingVersion,new(ExternalResultKind.Succeeded,"fulfilled",action.Id.ToString("D")),1);
+            await notices.RecordNoticeAsync(report,ct); await notices.RecordNoticeAsync(report,ct);
+            results.Add(new(action.Id,new(ExternalResultKind.Accepted,"accepted",action.Id.ToString("D"))));
+        }
+        return results;
     }
-    public Task<ExternalResult> ReconcileAsync(ExternalActionRecord action,CancellationToken ct)=>throw new NotSupportedException();
-    public Task<ExternalResult> ObserveAsync(ExternalActionRecord action,CancellationToken ct)=>throw new NotSupportedException();
 }

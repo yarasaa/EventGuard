@@ -10,8 +10,10 @@ writes with processing state, and provides durable retry and recovery requests. 
 it for product synchronization, document indexing, notifications, integrations, or
 other event-driven applications. Your application defines its models and business rules.
 
-**Status:** experimental `0.1.0-dev.29`. The name, API and schema are provisional.
-Install the exact preview version from nuget.org, or build from source using the local feed below. The optional modules add
+**Status:** experimental `0.1.0-dev.30`. The name, API and schema are provisional.
+Install the exact preview version from nuget.org, or build from source using the local feed below.
+See the [development acceptance criteria](#development-acceptance-criteria) for remaining work.
+The optional modules add
 typed jobs, consistent source snapshots, batches, external-service result handling and durable
 workflows. Your application supplies its business models, queries and service adapters.
 
@@ -231,9 +233,9 @@ and preserve any other feeds it needs:
 ```
 
 ```bash
-dotnet add package EventGuard.PostgreSql --version 0.1.0-dev.29
-dotnet add package EventGuard.Runtime --version 0.1.0-dev.29
-dotnet add package EventGuard.RabbitMq --version 0.1.0-dev.29
+dotnet add package EventGuard.PostgreSql --version 0.1.0-dev.30
+dotnet add package EventGuard.Runtime --version 0.1.0-dev.30
+dotnet add package EventGuard.RabbitMq --version 0.1.0-dev.30
 ```
 
 Nuget.org also supplies native-driver and framework dependencies. For repeatable restore,
@@ -544,8 +546,8 @@ Create `NuGet.Config` in that directory using the [package-source configuration 
 Then install only the packages needed for this consumer:
 
 ```bash
-dotnet add package EventGuard.PostgreSql --version 0.1.0-dev.29
-dotnet add package EventGuard.Runtime --version 0.1.0-dev.29
+dotnet add package EventGuard.PostgreSql --version 0.1.0-dev.30
+dotnet add package EventGuard.Runtime --version 0.1.0-dev.30
 ```
 
 Replace the generated `Program.cs` with this **complete file**:
@@ -1110,7 +1112,7 @@ Run the [load experiments](#load-experiments) in your own target environment.
 | Explicit provider migration input | New store or 1–11 | New store or 1–8 |
 | Migration output | 11 | 8 |
 
-Dev.28 keeps the base schema versions introduced in dev.24 (PostgreSQL 11 / SQL Server 8).
+Dev.30 keeps the base schema versions introduced in dev.24 (PostgreSQL 11 / SQL Server 8).
 Optional modules require their own explicit migrations; see the module sections below.
 
 The dev.23 → dev.24 PostgreSQL migration creates `ix_claim_due` and removes
@@ -1173,7 +1175,7 @@ examples below target .NET 10; a .NET 8 application needs a matching runtime ima
    ```bash
    dotnet publish -c Release -p:AssemblyName=EventGuardWorker -o ./publish
    docker build -f /absolute/path/to/EventGuard/deploy/Dockerfile.worker \
-     -t YOUR_REGISTRY/eventguard-worker:0.1.0-dev.29 ./publish
+     -t YOUR_REGISTRY/eventguard-worker:0.1.0-dev.30 ./publish
    # From the EventGuard checkout, build the dashboard image:
    bash eng/dashboard-image.sh
    ```
@@ -1389,9 +1391,131 @@ rolled back even if application code catches its exception; normally let the exc
 propagate so the entire transactional batch rolls back. Keys are acquired in a stable order.
 
 This is atomic **database** batching. For external work, create one `ExternalAction` intent per
-item inside the batch and execute those intents separately. A successful item must not be
-resent just because another item's service call failed. This version does not provide a
-bulk remote request/partial-response adapter. Automatic source preparation is available through the separate snapshot module.
+item inside the batch. Use `ExternalActionWorker` for individual calls or the optional
+`ExternalBatchWorker` for one service call carrying up to 100 independently tracked items.
+A successful item must not be resent just because another item's service call failed.
+Automatic source preparation is available through the separate snapshot module.
+
+### Bulk service calls and partial results (dev.30)
+
+`IExternalBatchServiceAdapter` is a provider-neutral boundary for sending, reconciling and
+observing multiple actions in one real remote call. The application supplies its service
+client, authentication, DTOs and response interpretation. No SMS-specific model or endpoint
+is assumed. Register the adapter once:
+
+```csharp
+using EventGuard;
+using EventGuard.Hosting;
+using EventGuard.Runtime;
+using EventGuard.SqlServer;
+using Microsoft.Extensions.DependencyInjection;
+
+var scope = new ProducerScope(authorizedTenant, "partner-provisioning");
+var schedule = new ExternalObservationSchedule([
+    new(TimeSpan.Zero, TimeSpan.FromMinutes(2)),
+    new(TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(5)),
+    new(TimeSpan.FromHours(1), TimeSpan.FromMinutes(30))
+]);
+services.AddEventGuard().AddExternalBatchService<PartnerBatchAdapter>(
+    "partner", scope,
+    options: new(maximumBatchSize: 100, pump: new(maximumConcurrency: 2)),
+    policy: new ExternalActionPolicy(schedule),
+    limit: new ExternalCallLimit("tenant/provider-account", "partner-api",
+        maximumCalls: 10, window: TimeSpan.FromSeconds(1), maximumConcurrency: 2),
+    storeFactory: sp => sp.GetRequiredService<SqlServerWorkStore>());
+```
+
+Register the selected store and the adapter's client dependencies in DI first. Run the
+explicit external-actions migration separately. PostgreSQL uses the same registration with
+`PostgreSqlWorkStore`. Startup validates the store and adapter before any workers begin.
+The registration supervises Submit plus the adapter's supported Reconcile/Observe loops,
+propagates faults to the host and awaits cooperative cancellation on shutdown. Adapters and
+their clients must support concurrent calls and cancellation. Set `phases: [ExternalPhase.Submit]`
+to run only sending in one process and register report workers separately. A shared limit
+counts **remote calls**, not recipients, across the registered phases. Use separate
+registrations/limits for distinct provider send and query quotas.
+
+Inside the existing transactional producer/job callback, use a stable logical action ID:
+
+```csharp
+var action = JsonExternalActions.Create(scope, stableActionId, "partner-api", "v1",
+    new ProvisionAccount(customerKey, requestedPlan), observationTimeout: TimeSpan.FromHours(24));
+await session.ExternalActions.EnqueueAsync(action, resultTarget, cancellationToken);
+```
+
+The existing `ExternalResultTarget` and result worker update your application's status rows
+from **each item result** using your native transaction. A failed status write does not trigger
+another remote submission. The adapter maps results by action ID, never by response position:
+
+```csharp
+public sealed class PartnerBatchAdapter(IPartnerClient client) : IExternalBatchServiceAdapter
+{
+    public string Binding => "partner-api";
+    public string BindingVersion => "v1";
+    public bool CanReconcile => true;
+    public bool CanObserve => true;
+
+    public async Task<IReadOnlyList<ExternalBatchItemResult>> ExecuteAsync(
+        ExternalBatchRequest request, CancellationToken ct)
+    {
+        var items = request.Items.Select(item => new PartnerItem(item.Action.Id,
+            item.Action.ReadJson<ProvisionAccount>(), item.ProviderReference)).ToArray();
+        var replies = await client.ExecuteBatchAsync(request.Phase, request.AttemptId, items, ct);
+        return replies.Select(reply => new ExternalBatchItemResult(reply.ActionId,
+            new ExternalResult(reply.Kind, reply.ReasonCode, reply.Reference))).ToArray();
+    }
+}
+
+public sealed record ProvisionAccount(string CustomerKey, string Plan);
+public sealed record PartnerItem(Guid ActionId, ProvisionAccount Request, string? Reference);
+public sealed record PartnerReply(Guid ActionId, ExternalResultKind Kind, string ReasonCode, string? Reference);
+public interface IPartnerClient
+{
+    // Implement your real SDK/HTTP contract. Reconcile and Observe must be read-only.
+    Task<IReadOnlyList<PartnerReply>> ExecuteBatchAsync(ExternalPhase phase, string attemptId,
+        IReadOnlyList<PartnerItem> items, CancellationToken ct);
+}
+```
+
+Declare only actual capabilities. A callback-only adapter can set `CanReceiveCallbacks = true`
+and `CanObserve = false`; normalized authenticated reports still enter through the existing
+observation notice API. Validate request DTOs before enqueueing. Never infer all-item acceptance
+from HTTP 200, or treat a timeout as proof of rejection. Missing/duplicate/null or phase-invalid
+item results become `Unknown`; unrelated response IDs are counted but cannot update another
+action. Valid results for the other items still apply. Responses exceeding 100 entries are
+rejected as ambiguous. An exception or lost whole reply makes the invoked items `Unknown`.
+Only explicit `NotAcceptedRetryable` evidence authorizes another send, within the attempt limit.
+
+Every call is restricted to one tenant/producer, binding/version and phase. `AttemptId` is
+derived from the member claim tokens and identifies this attempt; it is **not** the stable
+business idempotency key or a durable campaign batch receipt. Retain `Action.Id` at the provider
+when supported. Source snapshot batch IDs and runtime call groups have different lifetimes:
+the worker may regroup items and does not preserve source-batch membership.
+Reconciliation must work with stable item IDs or saved provider references. A provider that
+can look up a lost submission **only** by the original whole-batch request ID needs a durable
+batch-receipt adapter that is not yet implemented; do not declare reconciliation support for
+that contract. Unknown items remain held rather than being automatically resent.
+
+Collection stops at the size limit, an empty claim, or its time budget; it does not wait for a
+full batch. Concurrency counts calls, so two loops can have up to 200 active items at size 100.
+Each action remains bounded to 1 MiB; a 100-item call can therefore carry up to 100 MiB of raw
+payload, before serialization and copies. Choose a smaller batch size for large data and enforce
+your provider's request limits in its adapter. Byte-aware packing is still a roadmap item.
+Current database claims and settlements remain per item; this feature reduces remote calls
+and does not claim bulk SQL throughput. The earliest lease bounds the call timeout. A crash
+while claiming or settling can leave unresolved items for reconciliation, never blind resend.
+
+Schedule ages are measured from persisted acceptance and pending due times survive restarts.
+The final interval repeats until the action's observation deadline; the worker wakes at the
+deadline even if the next interval would extend beyond it. Timeout records an overdue report,
+not delivery failure. Use the same versioned policy on all workers for a binding; the schedule
+configuration itself lives in the application. Per-result Retry-After, jitter and exact absolute
+polling calendars are not yet implemented.
+
+These semantics address the per-item correlation and partial-failure concerns illustrated by
+[Microsoft Graph batching](https://learn.microsoft.com/en-us/graph/json-batching) and
+[Dapr bulk messaging](https://docs.dapr.io/developing-applications/building-blocks/pubsub/pubsub-bulk/).
+Those references do not imply a bundled Graph or Dapr adapter.
 
 ### Send through any service adapter
 
@@ -2140,7 +2264,7 @@ exchanges GitHub's identity for a short-lived publishing credential.
    Its artifact must contain all 16 packages and `release.json`; older runs without this
    artifact do not qualify. Record the numeric run ID from its Actions URL.
 2. Open **Actions → publish-nuget-preview → Run workflow**, choose `main`, enter that CI
-   run ID and the exact preview version from `Directory.Build.props` (currently `0.1.0-dev.29`).
+   run ID and the exact preview version from `Directory.Build.props` (currently `0.1.0-dev.30`).
    The workflow refuses another commit, another branch, a failed/incomplete CI run,
    pull-request builds, stable versions, missing/extra packages or changed package bytes.
    It downloads the tested packages without rebuilding or repeating the native test suite.
@@ -2153,6 +2277,34 @@ error and rerun the same workflow for the same commit and CI run; already upload
 are skipped and never overwritten. A changed candidate needs a new version and a new CI run.
 Expired artifacts require a new successful CI run. Name availability checks do not reserve
 package IDs or prove permission to publish them.
+
+## Development acceptance criteria
+
+Rich capabilities must remain optional and compose through Core contracts, Runtime workers,
+Hosting registration and native store adapters. Application DTOs, filter UI, business keys,
+service clients and application status mappings remain application-owned. A feature is not
+production-qualified merely because an API exists or the package can be installed.
+
+| Capability | Current status | Acceptance evidence / remaining requirement |
+| --- | --- | --- |
+| Remote batches with per-item results | Implemented in dev.30 | 250 items in calls of 100/100/50; reordered, missing, duplicate and invalid results; whole reply loss; cancellation; failed status persistence. Native PostgreSQL/SQL Server contracts and package-only composition checks cover .NET 8/10 with a synthetic provider. |
+| Easy service integration | Implemented in dev.30 | One `AddExternalBatchService` registration; JSON helpers; capability/schema validation before work; cooperative shutdown. Provider client and mapping are application code. |
+| Bulk report lookup and stepped polling | Implemented in dev.30 | Separate reconciliation/observation phases; elapsed-age intervals; durable due times and deadline capping. No resubmission on report timeout. |
+| Provider-directed Retry-After and jitter | Open | Persist per-item retry hints, apply only to legal state transitions, test restart/clock boundaries and mixed partial throttling. |
+| Efficient and bounded batching | Open beyond item-count bounds | Byte-aware packing, provider limits, native multi-item claim/settlement, lease collection budget and sustained SQL Server measurements. Preserve unresolved items when batch membership changes. |
+| Durable provider batch receipts | Open for providers that only reconcile whole batches | Freeze original call membership and provider/client batch ID before invocation; recover a lost whole-call reply by that ID and distribute evidence to item records. Current adapters must reconcile by stable item ID or a saved provider reference. |
+| Call and recipient quotas | Calls implemented within one store; weighted units open | Distinguish requests from recipients/bytes; separate send/query quotas; validate burst boundaries and shared-account behavior. Separate stores currently do not share a quota. |
+| Dapr integration | Open | Typed ingress/egress registration; durable acceptance before SUCCESS; per-entry outcomes; sidecar restart, redelivery and authentication tests; KEDA deployment example. Dapr bulk API maturity must be checked for the selected platform version. |
+| Source preflight and selection preview | Open beyond current validation | Read-only permission/isolation checks, bounded preview/count estimate and documented replica freshness. Consistent SQL Server capture currently requires DBA-enabled snapshot isolation; never silently weaken consistency. |
+| External payload retention | Open beyond existing work/outbox and snapshot-staging cleanup | Terminal-state/age criteria, unresolved-record protection, archive acknowledgement, idempotent pruning and privacy-safe deduplication tombstones; include backups and result evidence. |
+| Audited unknown resolution | Automatic evidence-based reconciliation exists; operator workflow open | Authorized, version-checked decisions with actor/reason/evidence, dry-run preview and no default resend. Do not expose arbitrary force-resend as a safety guarantee. |
+| Batch diagnostics | Existing module monitoring; batch-level metrics open | Explain quota wait, missing response, reconciliation and overdue report; export call/item/partial-result metrics without payloads or personal data. |
+| Production qualification and stable upgrades | Open | Representative SQL Server backlog/soak/failover and backup/restore; real provider/Dapr/OpenShift configuration; migration from published versions; package provenance/dependency review and explicit support policy. |
+| Independent onboarding | Automated checks exist; independent team trial open | A team integrates its own model, store and provider using only this README, records friction and completes failure recovery exercises. |
+
+The referenced tests and fixtures are acceptance assets, not claims that an unavailable
+environment or real provider has been tested. Keep failed/blocked runs in local evidence,
+and do not replace production qualification with synthetic provider success or a test count.
 
 ## Known limitations
 
