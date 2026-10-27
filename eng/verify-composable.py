@@ -6,6 +6,7 @@ import os
 import re
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape
@@ -59,11 +60,24 @@ def main():
               'realExternalService': False, 'bulkReadmeExamplesCompiled': False, 'cases': [], 'passed': False}
 
     def run(command, cwd):
-        completed = subprocess.run([str(x) for x in command], cwd=cwd, env=env, capture_output=True, text=True, timeout=300)
+        label = ' '.join(str(x) for x in command)
+        print(f'Composition: {label}', flush=True)
+        try:
+            completed = subprocess.run([str(x) for x in command], cwd=cwd, env=env, capture_output=True, text=True, timeout=300)
+        except subprocess.TimeoutExpired as error:
+            # TimeoutExpired can retain bytes even when text=True.
+            def decode(value):
+                return value.decode(errors='replace') if isinstance(value, bytes) else value or ''
+            details = decode(error.stdout) + '\n' + decode(error.stderr)
+            with (output / 'commands.log').open('a') as log:
+                log.write(f'$ {label}\n{details}\nTimed out after 300 seconds.\n')
+            print(details[-16000:], file=sys.stderr, flush=True)
+            raise RuntimeError(f'Composition command timed out: {label}; see {output / "commands.log"}.') from error
         with (output / 'commands.log').open('a') as log:
-            log.write(completed.stdout + '\n' + completed.stderr + '\n')
+            log.write(f'$ {label}\n' + completed.stdout + '\n' + completed.stderr + '\n')
         if completed.returncode:
-            raise RuntimeError('Composition verification failed; see commands.log.')
+            print((completed.stdout + '\n' + completed.stderr)[-16000:], file=sys.stderr, flush=True)
+            raise RuntimeError(f'Composition command exited {completed.returncode}: {label}; see {output / "commands.log"}.')
         return completed.stdout
 
     try:

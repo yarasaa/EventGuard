@@ -98,6 +98,17 @@ jobs:
         run: bash pilots/CatalogPilot/pilot.sh verify --framework both
       - name: Record verified package hashes
         run: python3 eng/verify-release.py record --packages .artifacts/packages --commit "$GITHUB_SHA"
+      - name: Save failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verification-failure-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            .artifacts/test-results/*.trx
+            .artifacts/composable-verify-*/commands.log
+            .artifacts/composable-verify-*/result.json
+          if-no-files-found: warn
+          retention-days: 7
       - name: Save verified packages
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
