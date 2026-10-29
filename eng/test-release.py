@@ -6,6 +6,10 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
+import zipfile
+
+from package_fixture import candidate_nuget_config, verify_restored_candidates
 
 spec = importlib.util.spec_from_file_location("release", Path(__file__).with_name("verify-release.py"))
 release = importlib.util.module_from_spec(spec)
@@ -83,6 +87,53 @@ class ReleaseChecks(unittest.TestCase):
                     altered[key] = value
                     receipt.write_text(json.dumps(altered))
                     release.verify_manifest(folder, version, COMMIT)
+
+
+class PackageFixtureChecks(unittest.TestCase):
+    def test_eventguard_candidates_are_mapped_to_the_local_feed(self):
+        config = ET.fromstring(candidate_nuget_config(Path('candidate & packages')))
+        sources = {node.get('key'): node.get('value') for node in config.findall('./packageSources/add')}
+        patterns = {node.get('key'): [p.get('pattern') for p in node] for node in config.findall('./packageSourceMapping/packageSource')}
+        self.assertEqual(sources['candidate'], str(Path('candidate & packages').resolve()))
+        self.assertEqual(patterns, {'candidate': ['EventGuard.*'], 'nuget.org': ['*']})
+
+    def test_package_only_evidence_rejects_stale_archives_assemblies_and_wrong_versions(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            packages, cache = root / 'packages', root / 'cache'
+            packages.mkdir()
+            directory = cache / 'eventguard.probe/1.0.0'
+            directory.mkdir(parents=True)
+            candidate = packages / 'EventGuard.Probe.1.0.0.nupkg'
+            asset = 'lib/net8.0/EventGuard.Probe.dll'
+            with zipfile.ZipFile(candidate, 'w') as package:
+                package.writestr(asset, b'current candidate assembly')
+            restored = directory / 'eventguard.probe.1.0.0.nupkg'
+            extracted = directory / asset
+            extracted.parent.mkdir(parents=True)
+            assets_file = root / 'project.assets.json'
+            library = {'type': 'package', 'path': 'eventguard.probe/1.0.0'}
+            for fault in (None, 'archive', 'missing archive', 'assembly', 'missing assembly', 'version', 'project', 'escape', 'empty'):
+                with self.subTest(fault=fault):
+                    restored.write_bytes(candidate.read_bytes())
+                    extracted.write_bytes(b'current candidate assembly')
+                    assets = {'libraries': {'EventGuard.Probe/1.0.0': library.copy()}}
+                    if fault == 'archive': restored.write_bytes(b'old package at the same version')
+                    if fault == 'missing archive': restored.unlink()
+                    if fault == 'assembly': extracted.write_bytes(b'old extracted assembly')
+                    if fault == 'missing assembly': extracted.unlink()
+                    if fault == 'version': assets['libraries'] = {'EventGuard.Probe/0.9.0': library.copy()}
+                    if fault == 'project': assets['libraries']['EventGuard.Probe/1.0.0']['type'] = 'project'
+                    if fault == 'escape': assets['libraries']['EventGuard.Probe/1.0.0']['path'] = '../outside-cache'
+                    if fault == 'empty': assets['libraries'] = {}
+                    assets_file.write_text(json.dumps(assets))
+                    if fault is None:
+                        evidence = verify_restored_candidates(assets_file, packages, cache, '1.0.0')
+                        self.assertEqual(len(evidence), 1)
+                        self.assertEqual(evidence[0]['id'], 'EventGuard.Probe')
+                    else:
+                        with self.assertRaises(RuntimeError):
+                            verify_restored_candidates(assets_file, packages, cache, '1.0.0')
 
 
 if __name__ == "__main__":

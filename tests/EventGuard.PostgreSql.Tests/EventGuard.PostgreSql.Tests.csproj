@@ -5,6 +5,7 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../ProcessSupport/DatabaseExchangeCounter.cs" Link="DatabaseExchangeCounter.cs" />
     <Compile Include="../ProcessSupport/ExternalBatchStoreContract.cs" Link="ExternalBatchStoreContract.cs" />
     <Compile Include="../ProcessSupport/PostgreSqlFaultTransport.cs" Link="PostgreSqlFaultTransport.cs" />
     <ProjectReference Include="../../src/EventGuard.PostgreSql/EventGuard.PostgreSql.csproj" />

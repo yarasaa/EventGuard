@@ -33,7 +33,7 @@ public static class KafkaHostingExtensions
                     : throw new IngressMessageRejectedException("unmapped-tombstone"), acceptanceTimeout, quarantine);
         });
         KafkaIngress Ingress(IServiceProvider sp) => sp.GetRequiredKeyedService<KafkaIngress>(key);
-        return builder.AddWorker(name + ".kafka", (sp, ct) => Ingress(sp).RunAsync(ct),
+        return builder.AddWorker(name + ".kafka", name, (sp, ct) => Ingress(sp).RunAsync(ct),
             (sp, ct) => { _ = Ingress(sp); return Task.CompletedTask; });
     }
 

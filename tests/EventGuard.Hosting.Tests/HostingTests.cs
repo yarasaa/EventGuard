@@ -63,6 +63,23 @@ public sealed class HostingTests
     }
 
     [Fact]
+    public async Task Json_consumer_applies_configured_lease_and_retry_policy()
+    {
+        var builder = Builder(); var store = new FakeStore();
+        builder.Services.AddEventGuard(ConfigurationTests.Json("""
+            {"EventGuard":{"Workers":{"messages":{"Worker":{"LeaseDuration":"00:00:45","IdleDelay":"00:00:00.005"},
+              "Retry":{"MaximumAttempts":9,"JitterRatio":0}}}}}
+            """)).AddJsonConsumer<Message, Session, NoopHandler>("messages", Options(), _ => store);
+        using var host = builder.Build();
+        var consumer = host.Services.GetRequiredKeyedService<IEventGuardConsumer<Message>>("messages");
+        var accepted = await consumer.SubmitAsync(new(Guid.NewGuid(), 1));
+        await host.StartAsync(); await UntilAsync(() => store.Items[accepted.Work.Id].State == WorkState.Completed);
+        await host.StopAsync();
+        Assert.Equal(TimeSpan.FromSeconds(45), store.LastLease);
+        Assert.Equal(9, store.LastRetry!.MaximumAttempts); Assert.Equal(0, store.LastRetry.JitterRatio);
+    }
+
+    [Fact]
     public async Task Invalid_store_capabilities_fail_before_claim()
     {
         var builder = Builder();
@@ -211,6 +228,8 @@ public sealed class HostingTests
         public StoreCapabilities Capabilities { get; init; } = StoreCapabilities.ConsumerTransactions;
         public int Claims;
         public int SessionsUsed;
+        public TimeSpan? LastLease;
+        public RetryPolicy? LastRetry;
         public Task<StoreStartupReport> ValidateStartupAsync(StoreStartupRequest request, CancellationToken ct = default) =>
             Task.FromResult(new StoreStartupReport("test-double", "1", 1, Capabilities, false));
         public Task<AcceptanceResult> AcceptAsync(WorkSubmission submission, CancellationToken ct = default)
@@ -224,11 +243,12 @@ public sealed class HostingTests
         public Task<WorkItem?> FindAsync(WorkScope scope, Guid id, CancellationToken ct = default) =>
             Task.FromResult(Items.TryGetValue(id, out var work) && work.ScopeId == scope.Id ? work : null);
         public Task<WorkClaim?> ClaimNextAsync(WorkScope scope, Guid request, TimeSpan lease, CancellationToken ct = default)
-        { Interlocked.Increment(ref Claims); return Task.FromResult(_pending.Reader.TryRead(out var work) ? work : null); }
+        { LastLease = lease; Interlocked.Increment(ref Claims); return Task.FromResult(_pending.Reader.TryRead(out var work) ? work : null); }
         public async Task<ExecutionResult> ExecuteAsync(WorkClaim claim,
             Func<WorkItem, ReadOnlyMemory<byte>, Session, CancellationToken, ValueTask> handler, RetryPolicy policy, CancellationToken ct = default)
         {
             var session = new Session();
+            LastRetry = policy;
             await handler(claim.Work, claim.Payload, session, ct);
             if (session.Used) Interlocked.Increment(ref SessionsUsed);
             var work = claim.Work with { State = WorkState.Completed };

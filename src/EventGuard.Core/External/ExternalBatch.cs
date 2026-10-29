@@ -9,12 +9,23 @@ public sealed class ExternalBatchRequest
     public ExternalPhase Phase { get; }
     public IReadOnlyList<ExternalActionRecord> Items { get; }
 
-    public ExternalBatchRequest(IEnumerable<ExternalActionClaim> claims)
+    public ExternalBatchRequest(IEnumerable<ExternalActionClaim> claims) : this(claims, 100) { }
+
+    public ExternalBatchRequest(IEnumerable<ExternalActionClaim> claims, int maximumBatchSize)
     {
         ArgumentNullException.ThrowIfNull(claims);
-        var copy = claims.Take(101).ToArray();
-        if (copy.Length is < 1 or > 100 || copy.Any(c => c is null))
-            throw new ArgumentException("A remote batch contains 1–100 claims.", nameof(claims));
+        if (maximumBatchSize < 1) throw new ArgumentOutOfRangeException(nameof(maximumBatchSize));
+        var bounded = new List<ExternalActionClaim>();
+        foreach (var claim in claims)
+        {
+            if (bounded.Count == maximumBatchSize)
+                throw new ArgumentException("The remote batch exceeds its configured item limit.", nameof(claims));
+            if (claim is null) throw new ArgumentException("A remote batch cannot contain null claims.", nameof(claims));
+            bounded.Add(claim);
+        }
+        var copy = bounded.ToArray();
+        if (copy.Length == 0)
+            throw new ArgumentException("A remote batch requires at least one claim.", nameof(claims));
         var first = copy[0];
         if (!Enum.IsDefined(first.Phase) || copy.Any(c => c.Phase != first.Phase
                 || c.Record.Action.Scope != first.Record.Action.Scope

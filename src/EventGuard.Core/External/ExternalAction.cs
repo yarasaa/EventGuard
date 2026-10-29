@@ -14,6 +14,7 @@ public sealed class ExternalAction
     public string BindingVersion { get; }
     public TimeSpan? ObservationTimeout { get; }
     public string Fingerprint { get; }
+    public int PayloadLength => _payload.Length;
     public byte[] CopyPayload() => (byte[])_payload.Clone();
 
     public ExternalAction(ProducerScope scope, Guid id, string binding, string bindingVersion,

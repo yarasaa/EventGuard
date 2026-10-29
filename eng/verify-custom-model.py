@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import uuid
 import xml.etree.ElementTree as ET
-from xml.sax.saxutils import escape
+from package_fixture import candidate_nuget_config, verify_restored_candidates
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -35,7 +35,7 @@ def main():
     docker = ['bash', str(ROOT / 'eng/docker.sh'), 'exec', args.database_container,
               'psql', '-U', 'eventguard', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-Atc']
     report = {'independentHumanTrial': False, 'customBusinessModel': True, 'freshPackageCache': True,
-              'projectReferences': False, 'version': version, 'cases': [], 'passed': False}
+              'projectReferences': False, 'version': version, 'restoredCandidates': {}, 'cases': [], 'passed': False}
 
     def run(command, **kwargs):
         r = subprocess.run([str(x) for x in command], capture_output=True, text=True, env=env, timeout=240, **kwargs)
@@ -48,12 +48,15 @@ def main():
     try:
         with tempfile.TemporaryDirectory(prefix='eventguard-custom-model-') as directory:
             root = Path(directory)
-            (root / 'NuGet.Config').write_text(f'<configuration><packageSources><clear/><add key="candidate" value="{escape(str(packages))}"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources></configuration>')
+            (root / 'NuGet.Config').write_text(candidate_nuget_config(packages))
             for framework, hosting in [('net8.0', '8.0.1'), ('net10.0', '10.0.12')]:
                 project = root / framework; project.mkdir()
                 (project / 'Model.csproj').write_text(f'''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>{framework}</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup><ItemGroup><PackageReference Include="EventGuard.Hosting" Version="{version}"/><PackageReference Include="EventGuard.PostgreSql" Version="{version}"/><PackageReference Include="Microsoft.Extensions.Hosting" Version="{hosting}"/></ItemGroup></Project>''')
                 (project / 'Program.cs').write_text((ROOT / 'eng/fixtures/custom-model/Program.cs.txt').read_text())
-                run([dotnet, 'build', '-c', 'Release'], cwd=project)
+                run([dotnet, 'restore'], cwd=project)
+                report['restoredCandidates'][framework] = verify_restored_candidates(
+                    project / 'obj/project.assets.json', packages, env['NUGET_PACKAGES'], version)
+                run([dotnet, 'build', '-c', 'Release', '--no-restore'], cwd=project)
                 database = 'eventguard_test_model_' + uuid.uuid4().hex
                 restored = 'eventguard_test_model_' + uuid.uuid4().hex
                 try:

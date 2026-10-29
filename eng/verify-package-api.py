@@ -66,8 +66,19 @@ def main():
     output.mkdir(parents=True)
     report = {'baselineVersion': args.baseline_version, 'candidateVersion': current,
               'method': 'SDK package/API compatibility; parameter names included; no generated suppressions',
-              'behavioralCompatibilityProven': False, 'packages': [], 'passed': False}
+              'behavioralCompatibilityProven': False, 'releaseBuildPassed': False, 'packages': [], 'passed': False}
     try:
+        # Pack --no-build must never silently validate binaries left by an older Release build.
+        # A preceding Debug test run does not refresh those binaries.
+        for name, arguments in [('restore', ['restore', 'EventGuard.slnx', '--locked-mode']),
+                                ('build', ['build', 'EventGuard.slnx', '-c', 'Release', '--no-restore',
+                                           '-m:1', '-p:UseSharedCompilation=false'])]:
+            with (output / ('release-' + name + '.log')).open('x') as log:
+                completed = subprocess.run(['bash', str(ROOT / 'eng/dotnet.sh'), *arguments],
+                                           cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, timeout=300)
+            if completed.returncode:
+                raise RuntimeError('Current-source Release ' + name + ' failed; see release-' + name + '.log.')
+        report['releaseBuildPassed'] = True
         report['removedPublicMethodRejected'] = check_gate(output)
         if not report['removedPublicMethodRejected']:
             raise RuntimeError('API gate self-check failed; see gate-probe logs.')

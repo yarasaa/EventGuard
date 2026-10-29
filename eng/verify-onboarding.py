@@ -20,7 +20,7 @@ import uuid
 import xml.etree.ElementTree as ET
 from urllib.request import urlopen
 from urllib.error import URLError
-from xml.sax.saxutils import escape
+from package_fixture import candidate_nuget_config, verify_restored_candidates
 
 ROOT = Path(__file__).resolve().parents[1]
 DOTNET = ROOT / ".tools/dotnet/dotnet"
@@ -36,6 +36,7 @@ def main():
     parser.add_argument("--backup-restore", action="store_true", help="Restore a native backup into a second disposable database and verify deduplication and projection.")
     parser.add_argument("--optional-adapters", action="store_true", help="Also compile EF Core and Kafka/RabbitMQ hosting APIs from NuGet packages outside the checkout.")
     options = parser.parse_args()
+    version = ET.parse(ROOT / "Directory.Build.props").findtext(".//Version")
     output = options.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     project_root = Path(tempfile.mkdtemp(prefix="eventguard-onboarding-"))
@@ -48,7 +49,7 @@ def main():
                DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1", DOTNET_ENVIRONMENT="Production")
     hive = ["--debug:custom-hive", str(output / "template-hive")]
     evidence = {"packageOnly": True, "newPackageCache": True, "independentDeveloper": False,
-                "projectsOutsideCheckout": str(project_root), "cases": []}
+                "projectsOutsideCheckout": str(project_root), "restoredCandidates": {}, "cases": []}
 
     def run(args, *, cwd=ROOT, overrides=None, expected=0, timeout=180):
         completed = subprocess.run([str(a) for a in args], cwd=cwd, env=env | (overrides or {}),
@@ -164,13 +165,9 @@ def main():
             project = project_root / name
             run([DOTNET, "new", "eventguard-worker", "--name", name, "--framework", framework,
                  "--output", project, *hive], cwd=project_root)
-            (project / "NuGet.Config").write_text(f'''<configuration><packageSources><clear />
-<add key="local" value="{escape(str(options.packages.resolve()))}" />
-<add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-</packageSources></configuration>''')
+            (project / "NuGet.Config").write_text(candidate_nuget_config(options.packages))
             assert "ProjectReference" not in (project / f"{name}.csproj").read_text()
             if options.optional_adapters:
-                version = ET.parse(ROOT / "Directory.Build.props").findtext(".//Version")
                 definition = project / f"{name}.csproj"
                 tree = ET.parse(definition)
                 group = ET.SubElement(tree.getroot(), "ItemGroup")
@@ -211,6 +208,8 @@ public static class OptionalAdapterCompilation
 '''.replace("APP.", name + "."))
             run([DOTNET, "restore"], cwd=project)
             run([DOTNET, "restore", "--locked-mode"], cwd=project)
+            evidence['restoredCandidates'][framework] = verify_restored_candidates(
+                project / 'obj/project.assets.json', options.packages, env['NUGET_PACKAGES'], version)
             run([DOTNET, "build", "-c", "Release", "--no-restore"], cwd=project)
             dll = project / "bin/Release" / framework / (name + ".dll")
             for provider in ("PostgreSql", "SqlServer"):
@@ -230,7 +229,9 @@ public static class OptionalAdapterCompilation
                         created = True
                         sql("master", f"ALTER DATABASE [{database}] SET READ_COMMITTED_SNAPSHOT ON")
                         connection = f"Server=127.0.0.1,51433;Database={database};User ID=sa;Password=EventGuard-Local-Only!2026;Encrypt=False;TrustServerCertificate=True;Connect Timeout=5"
-                    config = {"EVENTGUARD_CONNECTION": connection, "EventGuard__Provider": provider}
+                    config = {"EVENTGUARD_CONNECTION": connection, "EventGuard__Provider": provider,
+                              "EventGuard__Processing__Workers__products__Worker__MaximumConcurrency": "2",
+                              "EventGuard__Processing__Workers__products__Worker__IdleDelay": "00:00:00.025"}
                     def app(*args, expected=0):
                         return run([DOTNET, dll, *args], cwd=project, overrides=config, expected=expected)
                     app("check", expected=1)
@@ -270,6 +271,9 @@ public static class OptionalAdapterCompilation
                     invalid = run([DOTNET, dll, "check"], cwd=project,
                         overrides=config | {"EventGuard__MaximumConcurrency": "0"}, expected=1)
                     assert "EventGuard:MaximumConcurrency" in invalid
+                    invalid = run([DOTNET, dll, "check"], cwd=project,
+                        overrides=config | {"EventGuard__Processing__Workers__products__Worker__MaximumConcurrency": "0"}, expected=1)
+                    assert "EventGuard:Processing:Workers:products:Worker:MaximumConcurrency" in invalid
                     check_dashboard(config, framework, provider, work_id)
                     # After a healthy start, make only this disposable test store unavailable.
                     # The hosted supervisor must stop the process with a nonzero exit code.

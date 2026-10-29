@@ -30,9 +30,8 @@ try
     var connection = Environment.GetEnvironmentVariable("EVENTGUARD_CONNECTION");
     if (string.IsNullOrWhiteSpace(connection)) throw new WorkerConfigurationException("Set EVENTGUARD_CONNECTION using your secret provider or local shell.");
     builder.Services.AddSingleton(settings);
-    // Set the process termination grace period above this budget (outbox settlement may need 10 seconds).
-    builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromSeconds(30));
-    var eventGuard = builder.Services.AddEventGuard();
+    // Processing overrides the legacy top-level concurrency/lease defaults; keep identity settings stable.
+    var eventGuard = builder.Services.AddEventGuard(builder.Configuration, "EventGuard:Processing");
     if (settings.Provider == "PostgreSql")
     {
         builder.Services.AddSingleton(_ => NpgsqlDataSource.Create(connection));
@@ -93,6 +92,11 @@ try
     return 0;
 }
 catch (WorkerConfigurationException error)
+{
+    Console.Error.WriteLine(error.Message);
+    return 1;
+}
+catch (EventGuardConfigurationException error)
 {
     Console.Error.WriteLine(error.Message);
     return 1;

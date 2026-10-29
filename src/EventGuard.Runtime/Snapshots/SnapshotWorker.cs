@@ -10,9 +10,15 @@ public sealed class SnapshotWorker<T> where T : notnull
     private readonly ISnapshotSource _source;
     private readonly JsonMessageContract<T> _items;
     private readonly TimeSpan _leaseDuration;
+    private readonly PollingWorkerOptions _polling;
     public SnapshotWorker(ISnapshotStore store, SnapshotDefinition definition, ISnapshotSource source,
         JsonMessageContract<T> items, TimeSpan? leaseDuration = null)
+        : this(store, definition, source, items, leaseDuration, new()) { }
+
+    public SnapshotWorker(ISnapshotStore store, SnapshotDefinition definition, ISnapshotSource source,
+        JsonMessageContract<T> items, TimeSpan? leaseDuration, PollingWorkerOptions polling)
     {
+        _polling = polling ?? throw new ArgumentNullException(nameof(polling));
         _store = store ?? throw new ArgumentNullException(nameof(store)); _definition = definition ?? throw new ArgumentNullException(nameof(definition));
         _source = source ?? throw new ArgumentNullException(nameof(source)); _items = items ?? throw new ArgumentNullException(nameof(items));
         if (source.Name != definition.Source || source.Version != definition.SourceVersion || source.Consistency != definition.Consistency)
@@ -25,9 +31,9 @@ public sealed class SnapshotWorker<T> where T : notnull
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            var rows = await _store.ListSnapshotsAsync(_definition, cancellationToken: cancellationToken);
+            var rows = await _store.ListSnapshotsAsync(_definition, _polling.MaximumItems, cancellationToken);
             foreach (var row in rows) await RunOnceAsync(row.Request, cancellationToken);
-            await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+            await Task.Delay(_polling.PollInterval, cancellationToken);
         }
     }
 

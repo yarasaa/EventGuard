@@ -55,10 +55,13 @@ public sealed class OutboxDispatcher
         {
             // No DB transaction is held while waiting on the external transport.
             using var send = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            send.CancelAfter(_options.LeaseDuration);
+            var remaining = claim.LeaseUntil - DateTimeOffset.UtcNow;
+            if (_options.ExternalCallTimeout is { } timeout && timeout < remaining) remaining = timeout;
+            send.CancelAfter(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero);
             try
             {
-                outcome = await transport.PublishAsync(message, send.Token)
+                outcome = remaining <= TimeSpan.Zero ? new(PublishStatus.NotSentTransient, "lease-expired-before-send")
+                    : await transport.PublishAsync(message, send.Token)
                     ?? new(PublishStatus.Unknown, "publish-outcome-missing");
             }
             catch (Exception)
@@ -68,13 +71,13 @@ public sealed class OutboxDispatcher
             }
         }
         // A stopped host still gets a bounded opportunity to persist the observed result.
-        using var settlement = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var settlement = new CancellationTokenSource(_options.SettlementTimeout);
         return await _store.SettleAsync(claim, outcome, _retry, settlement.Token);
     }
 
     public async Task RunAsync(CancellationToken stoppingToken)
     {
-        await StoreStartup.ValidateAsync(_store, _scope.Tenant, StoreRole.Outbox, _options.Startup, stoppingToken);
+        await StoreStartup.ValidateAsync(_store, _scope.Tenant, StoreRole.Outbox, _options.Startup, stoppingToken, _options.StartupTimeout);
         using var shutdown = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         await Task.WhenAll(Enumerable.Range(0, _options.MaximumConcurrency).Select(_ => WorkerAsync()));
 

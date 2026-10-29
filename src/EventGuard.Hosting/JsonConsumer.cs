@@ -24,7 +24,7 @@ internal sealed class JsonConsumer<TMessage, TSession, THandler>(IServiceProvide
         if (store is not IStoreStartupCheck check)
             throw new NotSupportedException("Hosted consumers require IStoreStartupCheck. Use WorkPump directly for custom unchecked stores.");
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        timeout.CancelAfter(options.Worker.StartupTimeout);
         var report = await check.ValidateStartupAsync(new(options.Scope.Tenant, StoreRole.Consumer, options.Worker.Startup), timeout.Token);
         timeout.Token.ThrowIfCancellationRequested();
         var required = options.Worker.Startup.RequiredCapabilities | StoreCapabilities.ConsumerTransactions;

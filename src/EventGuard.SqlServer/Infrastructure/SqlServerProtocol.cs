@@ -6,32 +6,48 @@ namespace EventGuard.SqlServer;
 
 internal static class SqlServerProtocol
 {
-    // SqlClient can report cancellation as SqlException. Normalize only command/reader paths;
+    // SqlClient can report cancellation as SqlException or an InvalidOperationException during a packet flush.
+    // Normalize only command/reader paths;
     // COMMIT has its own unknown-outcome handling and must never be collapsed into cancellation.
     public static async Task<int> ExecuteNonQueryCheckedAsync(this SqlCommand command, CancellationToken ct)
     {
         try { return await command.ExecuteNonQueryAsync(ct).ConfigureAwait(false); }
-        catch (SqlException error) when (ct.IsCancellationRequested) { throw new OperationCanceledException("SQL command cancelled.", error, ct); }
+        catch (Exception error) when (IsCommandCancellation(error, ct)) { throw new OperationCanceledException("SQL command cancelled.", error, ct); }
     }
     public static async Task<object?> ExecuteScalarCheckedAsync(this SqlCommand command, CancellationToken ct)
     {
         try { return await command.ExecuteScalarAsync(ct).ConfigureAwait(false); }
-        catch (SqlException error) when (ct.IsCancellationRequested) { throw new OperationCanceledException("SQL command cancelled.", error, ct); }
+        catch (Exception error) when (IsCommandCancellation(error, ct)) { throw new OperationCanceledException("SQL command cancelled.", error, ct); }
     }
     public static async Task<SqlDataReader> ExecuteReaderCheckedAsync(this SqlCommand command, CancellationToken ct)
     {
         try { return await command.ExecuteReaderAsync(ct).ConfigureAwait(false); }
-        catch (SqlException error) when (ct.IsCancellationRequested) { throw new OperationCanceledException("SQL command cancelled.", error, ct); }
+        catch (Exception error) when (IsCommandCancellation(error, ct)) { throw new OperationCanceledException("SQL command cancelled.", error, ct); }
     }
     public static async Task<bool> ReadCheckedAsync(this SqlDataReader reader, CancellationToken ct)
     {
         try { return await reader.ReadAsync(ct).ConfigureAwait(false); }
-        catch (SqlException error) when (ct.IsCancellationRequested) { throw new OperationCanceledException("SQL reader cancelled.", error, ct); }
+        catch (Exception error) when (IsCommandCancellation(error, ct)) { throw new OperationCanceledException("SQL reader cancelled.", error, ct); }
     }
     public static async Task<bool> NextResultCheckedAsync(this SqlDataReader reader, CancellationToken ct)
     {
         try { return await reader.NextResultAsync(ct).ConfigureAwait(false); }
-        catch (SqlException error) when (ct.IsCancellationRequested) { throw new OperationCanceledException("SQL reader cancelled.", error, ct); }
+        catch (Exception error) when (IsCommandCancellation(error, ct)) { throw new OperationCanceledException("SQL reader cancelled.", error, ct); }
+    }
+
+    internal static bool IsCommandCancellation(Exception error, CancellationToken ct)
+    {
+        if (!ct.IsCancellationRequested) return false;
+        if (error is SqlException) return true;
+        // The pinned SqlClient driver throws SQL.OperationCancelled() at these two sites.
+        // Its message is localized and has no error code. Keep the match narrow: an unrelated
+        // InvalidOperationException must still fail, even when shutdown happens concurrently.
+        // A driver update that changes these sites fails closed and needs the regression probe updated.
+        var site = error.TargetSite;
+        return error is InvalidOperationException
+            && site?.DeclaringType?.Assembly == typeof(SqlConnection).Assembly
+            && site.DeclaringType.FullName == "Microsoft.Data.SqlClient.TdsParserStateObject"
+            && site.Name is "ExecuteFlush" or "CancelWritePacket";
     }
     public static string QuoteSchema(string schema)
     {

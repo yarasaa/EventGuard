@@ -24,7 +24,7 @@ public sealed partial class PostgreSqlWorkStore : IExternalActionStore
         await using (var current = new NpgsqlCommand($"SELECT version FROM {_schema}.external_schema_version WHERE singleton", connection, transaction))
         {
             var oldVersion = (int)(await current.ExecuteScalarAsync(cancellationToken))!;
-            string[] migrations = ["002_result_handlers.sql", "003_call_limits.sql", "004_observation_notices.sql"];
+            string[] migrations = ["002_result_handlers.sql", "003_call_limits.sql", "004_observation_notices.sql", "005_native_batches.sql"];
             if (oldVersion < 1 || oldVersion > migrations.Length + 1) throw new InvalidOperationException("Unsupported external action schema version.");
             foreach (var name in migrations.Skip(oldVersion - 1))
             {
@@ -36,7 +36,7 @@ public sealed partial class PostgreSqlWorkStore : IExternalActionStore
             }
         }
         await using var version = new NpgsqlCommand($"SELECT version FROM {_schema}.external_schema_version WHERE singleton", connection, transaction);
-        if (await version.ExecuteScalarAsync(cancellationToken) is not int number || number != 4)
+        if (await version.ExecuteScalarAsync(cancellationToken) is not int number || number != 5)
             throw new InvalidOperationException("Unsupported external action schema version.");
         await PostgreSqlProtocol.CommitAsync(transaction, Guid.NewGuid(), cancellationToken);
     }
@@ -45,7 +45,7 @@ public sealed partial class PostgreSqlWorkStore : IExternalActionStore
     {
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand($"SELECT version FROM {_schema}.external_schema_version WHERE singleton", connection);
-        if (await command.ExecuteScalarAsync(cancellationToken) is not int version || version != 4)
+        if (await command.ExecuteScalarAsync(cancellationToken) is not int version || version != 5)
             throw new InvalidOperationException("Unsupported external action schema version. Run the explicit migration.");
     }
 

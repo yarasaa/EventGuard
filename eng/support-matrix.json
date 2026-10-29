@@ -91,7 +91,7 @@
       "limits": "1 MiB command/batch, 1\u20131000 items; transactional item receipts. Source preparation and workflow coordination are separate optional modules."
     },
     "externalActions": {
-      "schema": 4,
+      "schema": 5,
       "stores": [
         "postgresql",
         "sqlserver"
@@ -107,9 +107,12 @@
         "monotonic-report-revisions",
         "shared-service-window-quota",
         "shared-concurrency-permits",
-        "circuit-breaker"
+        "circuit-breaker",
+        "native-bounded-claim-and-settlement",
+        "durable-storage-batch-membership",
+        "atomic-bulk-result-work"
       ],
-      "limits": "One processing store coordinates calls. Unknown acceptance never automatically resends. Host authenticates callbacks; adapters own actual provider contracts. Payloads/receipts retained; no automatic remote compensation."
+      "limits": "One processing store coordinates calls. Unknown acceptance never automatically resends. Host authenticates callbacks; adapters own actual provider contracts. Payloads/receipts retained; no automatic remote compensation. Unreleased schema 5: native pages up to 1000 items / 64 MiB raw payload; remote call bounds are configurable. Local 100/250-item comparisons do not qualify sustained large-backlog throughput."
     },
     "snapshots": {
       "schema": 1,

@@ -70,6 +70,7 @@ public sealed class DatabaseFixture : IAsyncLifetime, IWorkStoreFixture<SqlServe
             SELECT @sql+=N'ALTER TABLE '+QUOTENAME(s.name)+N'.'+QUOTENAME(t.name)+N' DROP CONSTRAINT '+QUOTENAME(f.name)+N';'
             FROM sys.foreign_keys f JOIN sys.tables t ON f.parent_object_id=t.object_id JOIN sys.schemas s ON s.schema_id=t.schema_id WHERE s.name=@schema;
             SELECT @sql+=N'DROP TABLE '+QUOTENAME(@schema)+N'.'+QUOTENAME(name)+N';' FROM sys.tables WHERE schema_id=SCHEMA_ID(@schema);
+            SELECT @sql+=N'DROP TYPE '+QUOTENAME(@schema)+N'.'+QUOTENAME(name)+N';' FROM sys.types WHERE is_user_defined=1 AND schema_id=SCHEMA_ID(@schema);
             SET @sql+=N'DROP SCHEMA '+QUOTENAME(@schema)+N';';
             EXEC sys.sp_executesql @sql;
             """, connection, transaction);

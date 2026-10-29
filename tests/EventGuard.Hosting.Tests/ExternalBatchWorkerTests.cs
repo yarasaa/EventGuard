@@ -23,6 +23,58 @@ public sealed class ExternalBatchWorkerTests
     }
 
     [Fact]
+    public void Batch_size_defaults_to_one_hundred_but_only_requires_a_positive_configuration()
+    {
+        Assert.Equal(100, new ExternalBatchWorkerOptions().MaximumBatchSize);
+        Assert.Equal(int.MaxValue, new ExternalBatchWorkerOptions(int.MaxValue).MaximumBatchSize);
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ExternalBatchWorkerOptions(0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ExternalBatchWorkerOptions(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ExternalBatchWorkerOptions { MaximumPayloadBytes = 1024 * 1024 - 1 });
+    }
+
+    [Fact]
+    public void Native_requirement_fails_before_a_legacy_store_can_claim()
+    {
+        var store = new Store(1);
+        Assert.False(new ExternalBatchWorker(store, Scope, new Adapter(), ExternalPhase.Submit).UsesNativeStorage);
+        Assert.Throws<NotSupportedException>(() => new ExternalBatchWorker(store, Scope, new Adapter(), ExternalPhase.Submit,
+            options: new() { RequireNativeStorage = true }));
+        Assert.Equal(0, store.Claims);
+    }
+
+    [Fact]
+    public async Task Legacy_store_reserves_space_before_claiming_another_large_action()
+    {
+        var store = new Store(4); var adapter = new Adapter();
+        foreach (var record in store.Records.Values.ToArray())
+            store.Records[record.Action.Id] = record with { Action = new(Scope, record.Action.Id, "partner", "v1", new byte[600 * 1024]) };
+        var worker = new ExternalBatchWorker(store, Scope, adapter, ExternalPhase.Submit,
+            options: new() { MaximumPayloadBytes = 1024 * 1024 });
+        while (await worker.RunOnceAsync() is not null) { }
+        Assert.Equal(4, adapter.Requests.Count);
+        Assert.All(adapter.Requests, r => Assert.Single(r.Items));
+        Assert.All(store.Records.Values, r => Assert.Equal(ExternalActionState.Accepted, r.State));
+    }
+
+    [Theory]
+    [InlineData(1, 7)]
+    [InlineData(25, 60)]
+    [InlineData(250, 525)]
+    [InlineData(1000, 1050)]
+    public async Task Configured_batch_size_controls_call_groups_without_losing_item_results(int batchSize, int count)
+    {
+        var store = new Store(count); var adapter = new Adapter();
+        var worker = new ExternalBatchWorker(store, Scope, adapter, ExternalPhase.Submit,
+            options: new(batchSize, Options.Pump, Options.CollectionWindow));
+        while (await worker.RunOnceAsync() is not null) { }
+        var expected = Enumerable.Range(0, (count + batchSize - 1) / batchSize)
+            .Select(i => Math.Min(batchSize, count - i * batchSize));
+        Assert.Equal(expected, adapter.Requests.Select(r => r.Items.Count));
+        Assert.Equal(count, adapter.Requests.SelectMany(r => r.Items).Select(r => r.Action.Id).Distinct().Count());
+        Assert.All(store.Records.Values, r => { Assert.Equal(ExternalActionState.Accepted, r.State); Assert.Equal(r.Action.Id.ToString("D"), r.ProviderReference); });
+    }
+
+    [Fact]
     public async Task Mixed_results_only_retry_proven_non_acceptance_and_hold_missing_or_duplicate_results()
     {
         var store = new Store(6); var ids = store.Records.Keys.ToArray();
@@ -43,16 +95,18 @@ public sealed class ExternalBatchWorkerTests
     [Fact]
     public async Task Lost_entire_reply_reconciles_and_observes_in_batches_without_resubmission()
     {
-        var store = new Store(100, TimeSpan.FromHours(24));
+        var store = new Store(250, TimeSpan.FromHours(24));
+        var options = new ExternalBatchWorkerOptions(250, Options.Pump, Options.CollectionWindow);
         var adapter = new Adapter { Respond = _ => throw new IOException("lost reply") };
-        var sender = new ExternalBatchWorker(store, Scope, adapter, ExternalPhase.Submit, options: Options);
+        var sender = new ExternalBatchWorker(store, Scope, adapter, ExternalPhase.Submit, options: options);
         await sender.RunOnceAsync(); Assert.Null(await sender.RunOnceAsync());
         Assert.All(store.Records.Values, r => Assert.Equal(ExternalActionState.Unknown, r.State));
         adapter.Respond = null; store.Due();
-        await new ExternalBatchWorker(store, Scope, adapter, ExternalPhase.Reconcile, options: Options).RunOnceAsync();
+        await new ExternalBatchWorker(store, Scope, adapter, ExternalPhase.Reconcile, options: options).RunOnceAsync();
         store.Due();
-        await new ExternalBatchWorker(store, Scope, adapter, ExternalPhase.Observe, options: Options).RunOnceAsync();
+        await new ExternalBatchWorker(store, Scope, adapter, ExternalPhase.Observe, options: options).RunOnceAsync();
         Assert.Equal(new[] { ExternalPhase.Submit, ExternalPhase.Reconcile, ExternalPhase.Observe }, adapter.Requests.Select(r => r.Phase));
+        Assert.All(adapter.Requests, r => Assert.Equal(250, r.Items.Count));
         Assert.All(store.Records.Values, r => { Assert.Equal(ExternalObservationState.Succeeded, r.Observation); Assert.Equal(1, r.SubmissionAttempts); });
     }
 
@@ -69,13 +123,16 @@ public sealed class ExternalBatchWorkerTests
         Assert.Equal(ExternalActionState.Accepted, store.Records[ids[1]].State);
     }
 
-    [Fact]
-    public async Task Oversized_response_is_not_truncated_into_false_acceptance()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(25)]
+    [InlineData(250)]
+    public async Task Oversized_response_is_not_truncated_into_false_acceptance(int batchSize)
     {
         var store = new Store(1); var id = store.Records.Keys.Single();
         var adapter = new Adapter { Respond = _ => Task.FromResult<IReadOnlyList<ExternalBatchItemResult>>(
-            Enumerable.Range(0, 101).Select(_ => new ExternalBatchItemResult(id, new(ExternalResultKind.Accepted, "ok"))).ToArray()) };
-        await new ExternalBatchWorker(store, Scope, adapter, ExternalPhase.Submit).RunOnceAsync();
+            Enumerable.Range(0, batchSize + 1).Select(i => new ExternalBatchItemResult(i == 0 ? id : Guid.NewGuid(), new(ExternalResultKind.Accepted, "ok"))).ToArray()) };
+        await new ExternalBatchWorker(store, Scope, adapter, ExternalPhase.Submit, options: new(batchSize)).RunOnceAsync();
         Assert.Equal(ExternalActionState.Unknown, store.Records[id].State);
     }
 
@@ -146,6 +203,84 @@ public sealed class ExternalBatchWorkerTests
         Assert.Equal(0, store.Claims);
     }
 
+    [Fact]
+    public async Task Configured_batch_worker_drains_in_requested_sizes_and_uses_selected_phase()
+    {
+        var store = new Store(525); var adapter = new Adapter();
+        var drained = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        adapter.Respond = request =>
+        {
+            if (adapter.Requests.Count == 3) drained.TrySetResult();
+            return Task.FromResult<IReadOnlyList<ExternalBatchItemResult>>(request.Items.Select(r =>
+                new ExternalBatchItemResult(r.Action.Id, new(ExternalResultKind.Accepted, "ok"))).ToArray());
+        };
+        var builder = Host.CreateApplicationBuilder(); builder.Logging.ClearProviders();
+        builder.Services.AddSingleton(adapter);
+        builder.Services.AddEventGuard(ConfigurationTests.Json("""
+            {"EventGuard":{"Defaults":{"Batch":{"MaximumBatchSize":250,"CollectionWindow":"00:00:05"}},
+              "Workers":{"partner":{"Phases":["Submit"],"Worker":{"MaximumConcurrency":1,"IdleDelay":"00:00:00.005"}}}}}
+            """)).AddExternalBatchService<Adapter>("partner", Scope, new(10), storeFactory: _ => store);
+        using var host = builder.Build();
+        await host.StartAsync(); await drained.Task.WaitAsync(TimeSpan.FromSeconds(10)); await host.StopAsync();
+        Assert.Equal(new[] { 250, 250, 25 }, adapter.Requests.Select(r => r.Items.Count));
+        Assert.All(adapter.Requests, r => Assert.Equal(ExternalPhase.Submit, r.Phase));
+        Assert.All(store.Records.Values, r => Assert.Equal(ExternalActionState.Accepted, r.State));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task External_call_timeout_cannot_extend_the_lease_and_keeps_uncertain_calls_unknown(bool shorterLease)
+    {
+        var store = new Store(1);
+        var adapter = new Adapter { RespondWithCancellation = async (_, ct) =>
+        {
+            await Task.Delay(Timeout.Infinite, ct);
+            return [];
+        }};
+        var pump = new WorkPumpOptions(leaseDuration: shorterLease ? TimeSpan.FromMilliseconds(80) : TimeSpan.FromSeconds(30))
+            { ExternalCallTimeout = shorterLease ? TimeSpan.FromSeconds(20) : TimeSpan.FromMilliseconds(80) };
+        var worker = new ExternalBatchWorker(store, Scope, adapter, ExternalPhase.Submit, options: new(1, pump));
+        var result = await worker.RunOnceAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Single(adapter.Requests);
+        if (shorterLease)
+        {
+            // Timer cancellation and lease expiry race. Recording Unknown just before expiry is also valid;
+            // if settlement lost ownership, the next poll must recover Sending to Unknown without re-sending.
+            Assert.Single(result!.Settlements);
+            Assert.Null(await worker.RunOnceAsync());
+        }
+        Assert.Equal(ExternalActionState.Unknown, store.Records.Values.Single().State);
+        Assert.Single(adapter.Requests);
+    }
+
+    [Fact]
+    public async Task Configured_startup_timeout_prevents_claims()
+    {
+        var store = new Store(1) { StallStartup = true };
+        var builder = Host.CreateApplicationBuilder(); builder.Logging.ClearProviders();
+        builder.Services.AddEventGuard(ConfigurationTests.Json("""
+            {"EventGuard":{"Workers":{"partner":{"Worker":{"StartupTimeout":"00:00:00.080"}}}}}
+            """)).AddExternalBatchService<Adapter>("partner", Scope, storeFactory: _ => store);
+        using var host = builder.Build();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => host.StartAsync().WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(0, store.Claims);
+    }
+
+    [Fact]
+    public async Task Configured_settlement_timeout_bounds_a_stalled_status_write_without_resending()
+    {
+        var store = new Store(1) { StallSettlement = true }; var adapter = new Adapter();
+        var worker = new ExternalBatchWorker(store, Scope, adapter, ExternalPhase.Submit,
+            options: new(1, new WorkPumpOptions { SettlementTimeout = TimeSpan.FromMilliseconds(80) }));
+        await Assert.ThrowsAsync<AggregateException>(() => worker.RunOnceAsync().WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Single(adapter.Requests);
+        store.StallSettlement = false; store.ExpireLeases();
+        Assert.Null(await worker.RunOnceAsync());
+        Assert.Equal(ExternalActionState.Unknown, store.Records.Values.Single().State);
+        Assert.Single(adapter.Requests);
+    }
+
     public sealed class Adapter : IExternalBatchServiceAdapter
     {
         public string Binding => "partner"; public string BindingVersion => "v1";
@@ -153,10 +288,11 @@ public sealed class ExternalBatchWorkerTests
         public List<ExternalBatchRequest> Requests { get; } = [];
         public TaskCompletionSource Called { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Func<ExternalBatchRequest, Task<IReadOnlyList<ExternalBatchItemResult>>>? Respond { get; set; }
+        public Func<ExternalBatchRequest, CancellationToken, Task<IReadOnlyList<ExternalBatchItemResult>>>? RespondWithCancellation { get; init; }
         public Task<IReadOnlyList<ExternalBatchItemResult>> ExecuteAsync(ExternalBatchRequest request, CancellationToken ct)
         {
             Requests.Add(request); Called.TrySetResult();
-            return Respond?.Invoke(request) ?? Task.FromResult<IReadOnlyList<ExternalBatchItemResult>>(request.Items.Reverse()
+            return RespondWithCancellation?.Invoke(request, ct) ?? Respond?.Invoke(request) ?? Task.FromResult<IReadOnlyList<ExternalBatchItemResult>>(request.Items.Reverse()
                 .Select(r => new ExternalBatchItemResult(r.Action.Id, new(request.Phase == ExternalPhase.Observe
                     ? ExternalResultKind.Succeeded : ExternalResultKind.Accepted, "ok", r.Action.Id.ToString("D")))).ToArray());
         }
@@ -187,6 +323,8 @@ public sealed class ExternalBatchWorkerTests
         public int Claims { get; private set; }
         public Guid? FailSettlementFor { get; set; }
         public Action? AfterClaim { get; set; }
+        public bool StallStartup { get; init; }
+        public bool StallSettlement { get; set; }
         public Store(int count, TimeSpan? observation = null)
         {
             for (var i = 0; i < count; i++)
@@ -197,7 +335,7 @@ public sealed class ExternalBatchWorkerTests
         }
         public void Due() { lock (_gate) foreach (var r in Records.Values.ToArray()) Records[r.Action.Id] = r with { NextAttemptAt = DateTimeOffset.UtcNow.AddMinutes(-1) }; }
         public void ExpireLeases() { lock (_gate) foreach (var id in _leases.Keys.ToArray()) _leases[id] = _leases[id] with { LeaseUntil = DateTimeOffset.UtcNow.AddMinutes(-1) }; }
-        public Task ValidateExternalActionsAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task ValidateExternalActionsAsync(CancellationToken ct = default) => StallStartup ? Task.Delay(Timeout.Infinite, ct) : Task.CompletedTask;
         public Task<ExternalActionRecord?> FindActionAsync(ProducerScope scope, Guid id, CancellationToken ct = default)
             => Task.FromResult(Records.TryGetValue(id, out var r) && r.Action.Scope == scope ? r : null);
         public Task<IReadOnlyList<ExternalAttemptEvidence>> ReadActionEvidenceAsync(ProducerScope scope, Guid id, int limit = 100, CancellationToken ct = default)
@@ -230,6 +368,8 @@ public sealed class ExternalBatchWorkerTests
         }
         public Task<ExternalSettlement> SettleActionAsync(ExternalActionClaim claim, ExternalResult result, ExternalActionPolicy policy, CancellationToken ct = default)
         {
+            if (StallSettlement) return Stall();
+            async Task<ExternalSettlement> Stall() { await Task.Delay(Timeout.Infinite, ct); throw new InvalidOperationException(); }
             ct.ThrowIfCancellationRequested();
             lock (_gate)
             {

@@ -61,6 +61,31 @@ public sealed class ExternalBatchContractsTests
     }
 
     [Fact]
+    public void Explicit_batch_limit_accepts_large_batches_and_stops_unbounded_inputs()
+    {
+        var read = 0;
+        IEnumerable<ExternalActionClaim> Claims()
+        {
+            while (true)
+            {
+                read++;
+                yield return new(new(new(new("t", "p"), Guid.NewGuid(), "s", "v1", []),
+                    ExternalActionState.Sending, ExternalObservationState.None, 1, 1, Now, null, null, null, []),
+                    ExternalPhase.Submit, Guid.NewGuid(), Now.AddMinutes(1));
+            }
+        }
+        Assert.Equal(1000, new ExternalBatchRequest(Claims().Take(1000), 1000).Items.Count);
+        read = 0;
+        Assert.Throws<ArgumentException>(() => new ExternalBatchRequest(Claims(), 250));
+        Assert.Equal(251, read);
+        read = 0;
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ExternalBatchRequest(Claims(), 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ExternalBatchRequest(Claims(), -1));
+        Assert.Equal(0, read);
+        Assert.Single(new ExternalBatchRequest(Claims().Take(1), int.MaxValue).Items);
+    }
+
+    [Fact]
     public void Json_helpers_preserve_user_model_and_stable_identity()
     {
         var a = JsonExternalActions.Create(new("t", "p"), Guid.NewGuid(), "s", "v1", new Model("item-7", 12));

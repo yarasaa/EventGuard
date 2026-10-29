@@ -36,6 +36,7 @@ else if (provider == "sqlserver")
             FROM sys.foreign_keys f JOIN sys.tables t ON f.parent_object_id=t.object_id JOIN sys.schemas s ON t.schema_id=s.schema_id WHERE s.name='{schema}';
             EXEC sys.sp_executesql @sql; SET @sql='';
             SELECT @sql+=N'DROP TABLE '+QUOTENAME(s.name)+'.'+QUOTENAME(t.name)+';' FROM sys.tables t JOIN sys.schemas s ON t.schema_id=s.schema_id WHERE s.name='{schema}';
+            SELECT @sql+=N'DROP TYPE {schema}.'+QUOTENAME(name)+N';' FROM sys.types WHERE is_user_defined=1 AND schema_id=SCHEMA_ID('{schema}');
             EXEC sys.sp_executesql @sql; EXEC('DROP SCHEMA {schema}');
             """;
         await drop.ExecuteNonQueryAsync();
@@ -211,8 +212,9 @@ async Task<PreparationEvidence> Preparation<TSession>(ITransactionalJobStore<TSe
     }
     var service=new CallbackService(notices); var limit=new ExternalCallLimit("selection-tenant","synthetic-service",1000,TimeSpan.FromMinutes(1),2);
     var sender=new ExternalBatchWorker(external,scope,service,ExternalPhase.Submit,
-        options:new(100,new(maximumConcurrency:1,leaseDuration:TimeSpan.FromMinutes(2)),TimeSpan.FromSeconds(5)),
+        options:new(100,new(maximumConcurrency:1,leaseDuration:TimeSpan.FromMinutes(2)),TimeSpan.FromSeconds(5)) { RequireNativeStorage=true },
         limit:limit,limiter:(IExternalCallLimiter)external);
+    await ((IExternalActionBatchStore)external).ValidateExternalBatchAsync(ct);
     var reports=new ExternalNoticeWorker(notices,scope,service.Binding,service.BindingVersion);
     for(var i=0;i<205;i++) { await sender.RunOnceAsync(ct); await reports.RunOnceAsync(ct); }
     var signalId=Guid.NewGuid();
@@ -232,7 +234,7 @@ async Task<PreparationEvidence> Preparation<TSession>(ITransactionalJobStore<TSe
     }
     finally { stop.Cancel(); await running; }
     if(actionCount!=205 || service.Submits!=205) throw new InvalidOperationException("Selection conservation failed.");
-    return new(captured.ItemCount,batches.Count,actionCount,service.Submits,service.Calls,progress.State.ToString(),true,captureMilliseconds,preparationClock.Elapsed.TotalMilliseconds);
+    return new(captured.ItemCount,batches.Count,actionCount,service.Submits,service.Calls,progress.State.ToString(),true,sender.UsesNativeStorage,captureMilliseconds,preparationClock.Elapsed.TotalMilliseconds);
 }
 
 static void AddParameter(DbCommand command, string name, object value)
@@ -275,7 +277,7 @@ sealed class DemoPartnerService : IExternalServiceAdapter
 }
 
 sealed record SelectedRecord(int Id);
-sealed record PreparationEvidence(long Selected,int Batches,int Actions,int Submits,int RemoteCalls,string Workflow,bool SyntheticCdc,double CaptureMilliseconds,double TotalMilliseconds);
+sealed record PreparationEvidence(long Selected,int Batches,int Actions,int Submits,int RemoteCalls,string Workflow,bool SyntheticCdc,bool NativeExternalStorage,double CaptureMilliseconds,double TotalMilliseconds);
 sealed class CallbackService(IExternalObservationStore notices) : IExternalBatchServiceAdapter
 {
     public int Submits { get; private set; }

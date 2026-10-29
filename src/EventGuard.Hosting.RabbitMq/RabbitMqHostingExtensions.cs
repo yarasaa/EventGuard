@@ -34,7 +34,7 @@ public static class RabbitMqHostingExtensions
         });
         Binding<TSession> Resolve(IServiceProvider sp) => sp.GetRequiredKeyedService<Binding<TSession>>(key);
         builder.AddJsonConsumer<TMessage, TSession, THandler>(name, options, sp => Resolve(sp).Store);
-        return builder.AddWorker(name + ".rabbitmq", async (sp, ct) =>
+        return builder.AddWorker(name + ".rabbitmq", name, async (sp, ct) =>
         {
             var binding = Resolve(sp);
             var consumer = sp.GetRequiredKeyedService<IEventGuardConsumer<TMessage>>(name);

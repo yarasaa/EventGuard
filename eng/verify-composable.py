@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
-from xml.sax.saxutils import escape
+from package_fixture import candidate_nuget_config, verify_restored_candidates
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -57,7 +57,7 @@ def main():
     env.update(DOTNET_ROOT=str(dotnet.parent), DOTNET_CLI_HOME=str(output / 'cli-home'), NUGET_PACKAGES=str(output / 'nuget-cache'),
                DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1', DOTNET_CLI_TELEMETRY_OPTOUT='1')
     report = {'version': version, 'packageOnly': True, 'freshCache': True, 'independentHumanTrial': False,
-              'realExternalService': False, 'bulkReadmeExamplesCompiled': False, 'cases': [], 'passed': False}
+              'realExternalService': False, 'bulkReadmeExamplesCompiled': False, 'restoredCandidates': {}, 'cases': [], 'passed': False}
 
     def run(command, cwd):
         label = ' '.join(str(x) for x in command)
@@ -83,21 +83,24 @@ def main():
     try:
         with tempfile.TemporaryDirectory(prefix='eventguard-composable-') as folder:
             root = Path(folder)
-            (root / 'NuGet.Config').write_text(f'<configuration><packageSources><clear/><add key="candidate" value="{escape(str(packages))}"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources></configuration>')
+            (root / 'NuGet.Config').write_text(candidate_nuget_config(packages))
             for framework in ['net8.0', 'net10.0']:
                 project = root / framework; project.mkdir()
                 refs = ''.join(f'<PackageReference Include="{name}" Version="{version}"/>' for name in libraries)
                 (project / 'Composition.csproj').write_text(f'<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>{framework}</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup><ItemGroup>{refs}</ItemGroup></Project>')
                 (project / 'Program.cs').write_text((ROOT / 'eng/fixtures/composable-execution/Program.cs.txt').read_text())
                 (project / 'BulkReadmeExample.cs').write_text(bulk_readme_example())
-                run([dotnet, 'build', '-c', 'Release', '-p:UseSharedCompilation=false'], project)
+                run([dotnet, 'restore'], project)
+                report['restoredCandidates'][framework] = verify_restored_candidates(
+                    project / 'obj/project.assets.json', packages, env['NUGET_PACKAGES'], version)
+                run([dotnet, 'build', '-c', 'Release', '--no-restore', '-p:UseSharedCompilation=false'], project)
                 for provider in ['postgresql', 'sqlserver']:
                     result = run([dotnet, project / f'bin/Release/{framework}/Composition.dll', provider], project)
                     case = json.loads(next(line for line in result.splitlines() if line.startswith('{')))
                     case['framework'] = framework
                     report['cases'].append(case)
         report['bulkReadmeExamplesCompiled'] = True
-        report['passed'] = len(report['cases']) == 4 and all(c['allSucceeded'] and c['uniqueEffects'] == 9 and c['Submits'] == 3 and c['projectedStatuses'] == 3 and c['failedStatusWrites'] == 1 and c['preparation']['Selected'] == 205 and c['preparation']['Batches'] == 3 and c['preparation']['Actions'] == c['preparation']['Submits'] == 205 and 3 <= c['preparation']['RemoteCalls'] < 205 and c['preparation']['Workflow'] == 'Completed' for c in report['cases'])
+        report['passed'] = len(report['cases']) == 4 and all(c['allSucceeded'] and c['uniqueEffects'] == 9 and c['Submits'] == 3 and c['projectedStatuses'] == 3 and c['failedStatusWrites'] == 1 and c['preparation']['Selected'] == 205 and c['preparation']['Batches'] == 3 and c['preparation']['Actions'] == c['preparation']['Submits'] == 205 and 3 <= c['preparation']['RemoteCalls'] < 205 and c['preparation']['Workflow'] == 'Completed' and c['preparation']['NativeExternalStorage'] for c in report['cases'])
     finally:
         (output / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))

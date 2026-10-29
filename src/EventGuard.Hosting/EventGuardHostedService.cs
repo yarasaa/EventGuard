@@ -4,18 +4,21 @@ using Microsoft.Extensions.Logging;
 namespace EventGuard.Hosting;
 
 internal sealed class EventGuardHostedService(IServiceProvider services, IEnumerable<WorkerRegistration> registrations,
-    IHostApplicationLifetime lifetime, ILogger<EventGuardHostedService> logger, EventGuardHostStatus status) : BackgroundService
+    IHostApplicationLifetime lifetime, ILogger<EventGuardHostedService> logger, EventGuardHostStatus status,
+    IEnumerable<EventGuardConfiguration> configurations) : BackgroundService
 {
     private readonly WorkerRegistration[] _workers = registrations.ToArray();
 
     public override async Task StartAsync(CancellationToken cancellationToken)
     {
         if (_workers.Length == 0) throw new InvalidOperationException("AddEventGuard requires at least one consumer or worker.");
+        foreach (var configuration in configurations) configuration.ValidateRegistrations(_workers);
         // Validate every dependency before any EventGuard worker starts claiming or acknowledging input.
-        foreach (var worker in _workers)
+        foreach (var worker in _workers.Where(w => w.Enabled))
         {
             try { await worker.Validate(services, cancellationToken); }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (EventGuardConfigurationException) { throw; }
             catch (Exception error)
             {
                 // Provider exception messages can contain SQL, payload or connection details.
@@ -28,7 +31,14 @@ internal sealed class EventGuardHostedService(IServiceProvider services, IEnumer
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var shutdown = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-        await Task.WhenAll(_workers.Select(SuperviseAsync));
+        var enabled = _workers.Where(w => w.Enabled).ToArray();
+        if (enabled.Length == 0)
+        {
+            try { await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken); }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
+            return;
+        }
+        await Task.WhenAll(enabled.Select(SuperviseAsync));
 
         async Task SuperviseAsync(WorkerRegistration worker)
         {

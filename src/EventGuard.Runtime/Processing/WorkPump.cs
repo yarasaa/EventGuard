@@ -27,7 +27,7 @@ public sealed class WorkPump<TSession>
 
     public async Task RunAsync(CancellationToken stoppingToken)
     {
-        await StoreStartup.ValidateAsync(_store, _scope.Tenant, StoreRole.Consumer, _options.Startup, stoppingToken);
+        await StoreStartup.ValidateAsync(_store, _scope.Tenant, StoreRole.Consumer, _options.Startup, stoppingToken, _options.StartupTimeout);
         using var shutdown = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         var workers = Enumerable.Range(0, _options.MaximumConcurrency).Select(_ => SuperviseAsync()).ToArray();
         await Task.WhenAll(workers);

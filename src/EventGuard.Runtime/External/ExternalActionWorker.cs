@@ -46,11 +46,13 @@ public sealed class ExternalActionWorker
             if (claim is null) return null;
             ExternalResult result;
             using var call = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            var remaining = permit is null ? _options.LeaseDuration : permit.ExpiresAt - DateTimeOffset.UtcNow;
+            var deadline = permit is not null && permit.ExpiresAt < claim.LeaseUntil ? permit.ExpiresAt : claim.LeaseUntil;
+            var remaining = deadline - DateTimeOffset.UtcNow;
+            if (_options.ExternalCallTimeout is { } timeout && timeout < remaining) remaining = timeout;
             call.CancelAfter(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero);
             if (_phase == ExternalPhase.Submit && claim.Record.Action.ObservationTimeout.HasValue && !_adapter.CanObserve && _adapter is not ICallbackExternalServiceAdapter)
                 result = new(ExternalResultKind.Rejected, "observation-capability-missing");
-            else if (cancellationToken.IsCancellationRequested || call.IsCancellationRequested)
+            else if (remaining <= TimeSpan.Zero || cancellationToken.IsCancellationRequested || call.IsCancellationRequested)
                 result = new(_phase == ExternalPhase.Submit ? ExternalResultKind.NotAcceptedRetryable : ExternalResultKind.Unknown, "cancelled-before-call");
             else
             {
@@ -68,14 +70,14 @@ public sealed class ExternalActionWorker
             }
             outcome = result.Kind is ExternalResultKind.Unknown or ExternalResultKind.NotAcceptedRetryable
                 ? ExternalCallOutcome.Unhealthy : ExternalCallOutcome.Healthy;
-            using var settle = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var settle = new CancellationTokenSource(_options.SettlementTimeout);
             return await _store.SettleActionAsync(claim, result, _policy, settle.Token);
         }
         finally
         {
             if (permit is not null)
             {
-                using var finish = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                using var finish = new CancellationTokenSource(_options.SettlementTimeout);
                 await _limiter!.CompleteCallAsync(permit, invoked ? outcome : ExternalCallOutcome.Unused, finish.Token);
             }
         }
@@ -83,7 +85,11 @@ public sealed class ExternalActionWorker
 
     public async Task RunAsync(CancellationToken stoppingToken = default)
     {
-        await _store.ValidateExternalActionsAsync(stoppingToken);
+        using (var startup = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken))
+        {
+            startup.CancelAfter(_options.StartupTimeout);
+            await _store.ValidateExternalActionsAsync(startup.Token);
+        }
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         await Task.WhenAll(Enumerable.Range(0, _options.MaximumConcurrency).Select(_ => Loop()));
         async Task Loop()

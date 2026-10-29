@@ -15,6 +15,13 @@ public static class ExternalBatchHostingExtensions
         where TAdapter : class, IExternalBatchServiceAdapter
     {
         ArgumentNullException.ThrowIfNull(builder); ArgumentNullException.ThrowIfNull(scope);
+        if (builder.Configuration is { } configuration)
+        {
+            options = configuration.GetBatchOptions(name, options);
+            policy = configuration.GetExternalPolicy(name, policy);
+            limit = configuration.GetCallLimit(name, limit);
+            phases = configuration.GetPhases(name, phases);
+        }
         var selected = phases?.Take(4).ToArray();
         if (selected is not null && (selected.Length is < 1 or > 3 || selected.Distinct().Count() != selected.Length
             || selected.Any(p => !Enum.IsDefined(p))))
@@ -33,7 +40,13 @@ public static class ExternalBatchHostingExtensions
                 policy, options, limit, limiter)).ToArray());
         });
         BatchRegistration Resolve(IServiceProvider sp) => sp.GetRequiredKeyedService<BatchRegistration>(name);
-        return builder.AddWorker(name, (sp, ct) => Resolve(sp).RunAsync(ct), (sp, ct) => Resolve(sp).Store.ValidateExternalActionsAsync(ct));
+        return builder.AddWorkerCore(name, name, (sp, ct) => Resolve(sp).RunAsync(ct), async (sp, ct) =>
+        {
+            using var startup = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            startup.CancelAfter(options?.Pump.StartupTimeout ?? TimeSpan.FromSeconds(5));
+            if (Resolve(sp).Store is IExternalActionBatchStore native) await native.ValidateExternalBatchAsync(startup.Token);
+            else await Resolve(sp).Store.ValidateExternalActionsAsync(startup.Token);
+        }, options?.Pump.StartupTimeout ?? TimeSpan.FromSeconds(5));
     }
 
     private sealed record BatchRegistration(IExternalActionStore Store, ExternalBatchWorker[] Workers)

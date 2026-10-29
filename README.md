@@ -10,6 +10,12 @@ writes with processing state, and provides durable retry and recovery requests. 
 it for product synchronization, document indexing, notifications, integrations, or
 other event-driven applications. Your application defines its models and business rules.
 
+The product goal is a general-purpose, composable event and durable-work toolkit. A
+notification, disaster-recovery or other application is a qualification workload; its
+provider, business fields, batch size and deployment platform do not define the core API.
+See the [general-purpose design requirements](#general-purpose-design-requirements) for
+the development scope and performance acceptance rules. These requirements include open work.
+
 **Status:** experimental `0.1.0-dev.30`. The name, API and schema are provisional.
 Install the exact preview version from nuget.org, or build from source using the local feed below.
 See the [development acceptance criteria](#development-acceptance-criteria) for remaining work.
@@ -18,7 +24,9 @@ typed jobs, consistent source snapshots, batches, external-service result handli
 workflows. Your application supplies its business models, queries and service adapters.
 
 Base schemas: **PostgreSQL 11 / SQL Server 8**. Optional schemas:
-**Jobs 2 / External actions 4 / Snapshots 1 / Workflows 1**. Enable only the modules you need.
+**Jobs 2 / External actions 4 / Snapshots 1 / Workflows 1** in published dev.30.
+The unreleased source requires **External actions 5** for native bulk storage; see
+[native external storage](#native-external-storage-unreleased) before upgrading. Enable only the modules you need.
 Local correctness checks have passed; production deployment and capacity qualification remain
 open. See [known limitations](#known-limitations) before adopting. **License:** [MIT](https://github.com/yarasaa/EventGuard/blob/main/LICENSE).
 
@@ -28,6 +36,7 @@ open. See [known limitations](#known-limitations) before adopting. **License:** 
 | --- | --- |
 | See the complete HTTP → broker → worker → dashboard flow | [Quick start](#quick-start) |
 | Add EventGuard to a new or existing .NET application | [Hosted worker quick start](#hosted-worker-quick-start), then [adapt it to your project](#adapt-it-to-your-project) |
+| Change batch sizes, concurrency, timeouts or report schedules | [JSON and environment configuration](#configuration-from-json-and-environment-variables) (unreleased) |
 | Configure login, scopes and the operations UI | [Configure the dashboard](#configure-the-dashboard) |
 
 You can run a consumer without a broker or dashboard. Add the transport when you need
@@ -37,6 +46,7 @@ with business writes. Start with the path you need rather than configuring every
 ## Contents
 
 - [What it provides](#what-it-provides)
+- [General-purpose design requirements](#general-purpose-design-requirements)
 - [Quick start](#quick-start)
 - [Use the packages in your application](#use-the-packages-in-your-application)
 - [Hosted worker quick start](#hosted-worker-quick-start)
@@ -86,6 +96,98 @@ connections, HTTP calls, emails and file writes are outside that transaction. An
 message can be delivered more than once when a broker outcome is uncertain; receiving
 applications still need deduplication. `Published` means transport acceptance, not
 completion by a downstream service.
+
+## General-purpose design requirements
+
+These are product and implementation requirements, not a claim that every capability below
+is already available. Current support is listed above and in the
+[development acceptance criteria](#development-acceptance-criteria). New integrations must
+declare and test their guarantees before being added to the support matrix.
+
+### Compose only the capabilities an application needs
+
+Applications select a source/ingress, a processing store, a handler or service adapter,
+optional result handling and optional operations UI independently. The source database may
+be read-only and different from the writable processing database. A service must be able to
+use durable work without a broker, snapshots without external sends, or external results
+without the dashboard. Application contracts own fields, validation, business keys, filters,
+provider clients and updates to application tables.
+
+| General capability | Examples of workloads it must serve | Required design property |
+| --- | --- | --- |
+| Durable intake and execution | Product projections, document indexing, integration events | Stable identity, deduplication and transaction boundaries independent of the message's business fields |
+| Selected-data capture and fan-out | Reindexing, exports, reconciliation, notifications | Application-supplied typed selection; explicit consistency and resume capabilities; destination independent of source |
+| External operations and receipts | Bulk partner APIs, document processing, notification services | Configurable bounded requests, per-item outcomes, single-item or whole-call receipts according to provider capabilities |
+| Deferred results and schedules | Asynchronous imports, fulfillment, report polling | Independent acceptance/completion states; intervals, fixed elapsed checkpoints and provider retry hints as distinct policies |
+| Recovery and lifecycle | Any durable work with failures or retained payloads | Audited decisions, protected unresolved work, configurable retention and explicit ordering/version rules |
+
+Optional features must not force every message through every module. A transactional
+consumer should not need an external-action record, and a service that only needs acceptance
+should not need report polling. The adapter must not acknowledge input before the selected
+durability boundary has committed. Changing transports cannot silently change that boundary.
+
+Core owns protocol contracts and state transitions; Runtime coordinates them; Hosting
+provides configuration and lifecycle; store/transport adapters implement native behavior.
+Provider-specific SQL and transport APIs belong in adapters. Domain-specific fields such
+as telephone numbers, customer IDs or provider-specific query IDs do not belong in Core.
+Optional adapter capabilities must be explicit and checked before execution. A fallback
+must preserve the requested guarantees and report its use; unsupported guarantees must fail
+validation instead of silently weakening correctness.
+
+### Performance is part of the contract
+
+Generic public contracts must allow efficient native implementations. PostgreSQL and SQL
+Server can use different batching/query techniques behind the same semantics. A loop over
+single-item store calls is a compatibility path, not evidence of native bulk performance.
+The next store optimization must support bounded multi-item claim and settlement, with
+per-item lease ownership, durable retry identities, partial outcomes and uncertain-commit
+recovery. Enlarging a remote batch alone does not satisfy this requirement.
+
+Bound work by item count, encoded bytes and time. Bound in-memory buffering and apply
+backpressure when dependencies cannot keep up. Separate local concurrency from shared
+provider capacity; quotas may count calls, items or bytes. Tenant fairness and partition/key
+ordering need explicit policies so one large tenant or slow key cannot accidentally consume
+all capacity. Extra coordination, serialization, payload copies and database writes must
+have a stated purpose on each execution path.
+
+Performance evidence must separate broker acceptance, durable admission, handler completion,
+external-service acceptance and eventual completion. Report useful committed outcomes per
+second, p50/p95/p99 latency, database commands/round trips per item and batch, CPU, memory,
+log/WAL bytes, disk I/O, queue age, recovery time and unresolved outcomes. Count failed,
+retried and duplicate work separately; fast submission into a growing queue is not sustained
+processing capacity. Record effective configuration, versions and machine resources.
+
+| Qualification workload | What it must expose |
+| --- | --- |
+| Transactional projection with duplicate and out-of-order input | Processing overhead, revision/ordering policy, deduplication and atomic business writes |
+| Variable-payload capture and batch execution | Count/byte packing, tail batches, database round trips and source restart consistency |
+| External batch calls with mixed results and lost responses | Acceptance throughput, retained uncertainty, quota use and reconciliation without unintended resends |
+| Delayed results and scheduled work | Due-time accuracy, restart continuity, callback/polling races and completion lag |
+| Multiple tenants and worker replicas | Fairness, backpressure, hot partitions, lease fencing and recovery under dependency failure |
+
+Benchmark profiles should include 1,000, 100,000, 300,000 and 1,000,000 pending items;
+representative small/medium/large payloads; single and multiple replicas; backlog draining
+and sustained arrivals. Select feasible combinations for the available resource budget;
+large qualification runs require dedicated infrastructure. Publish unsupported/unrun cells.
+Use both PostgreSQL and SQL Server and compare with the same application doing equivalent
+durable work directly. Declare workload-specific latency, throughput and resource targets
+before the run; never remove durability or failure handling to make the comparison faster.
+No universal records-per-second figure applies to every adapter and workload.
+
+### Integration and release acceptance
+
+Keep a short working path for each capability and optional configuration for advanced use.
+Shared defaults and named profiles must have documented precedence, validation and a clear
+restart policy. Native connection/security settings remain available for advanced users.
+Operational visibility should explain why work is waiting and which intervention is legal,
+without exposing payloads by default.
+
+Each feature needs a public contract, implementation, cross-provider behavior tests,
+failure tests, a package-only example and applicable performance evidence. Track these
+separately from production qualification. Require examples from multiple business domains;
+passing one provider-specific notification scenario is not a general acceptance test.
+Define supported combinations, schema/API upgrade behavior and retention/recovery boundaries
+for each release. An adapter interface alone does not add support for a new system.
 
 ## Quick start
 
@@ -268,6 +370,12 @@ NuGet package. All packages target modern .NET 8/10, not .NET Framework 4.x.
 
 ## Hosted worker quick start
 
+**Working-tree update, not yet published:** the template on this checkout uses the new
+configuration API described below and requires packages built from this checkout. For a
+NuGet-only installation of published `0.1.0-dev.30`, use the
+[published template revision](https://github.com/yarasaa/EventGuard/tree/0434e0ff7143f462b5f7a590a7a60e4fdfc37433/templates/EventGuard.Worker)
+until the next release is published.
+
 This is the recommended starting point for a Worker Service or ASP.NET Core application.
 The [worker template](https://github.com/yarasaa/EventGuard/tree/main/templates/EventGuard.Worker) separates contracts, handlers,
 configuration and database setup. It consumes packages without project references and
@@ -436,6 +544,163 @@ returns exit code 1 on a supervised loop failure. There is no hidden infinite in
 A host stop signals all loops and awaits cooperative cleanup within `HostOptions.ShutdownTimeout`;
 configure the container termination grace period above it. External effects are still outside
 native database atomicity. The package does not install broker topology, authentication or DDL.
+
+### Configuration from JSON and environment variables
+
+**Unreleased:** this section applies to the current source, not published `0.1.0-dev.30`.
+Keep business contracts, identity selectors and service adapters in code. Set operational
+values in `appsettings.json`, environment variables or any .NET configuration provider:
+
+```csharp
+var eventGuard = builder.Services.AddEventGuard(builder.Configuration);
+eventGuard.AddExternalBatchService<PartnerBatchAdapter>("sender", producerScope);
+eventGuard.AddExternalBatchService<PartnerBatchAdapter>("reports", producerScope);
+// Register IExternalActionStore and the adapter's dependencies with DI as usual.
+```
+
+For example, send at most 500 items per call and query at most 1,000 reports per call:
+
+```json
+{
+  "EventGuard": {
+    "ShutdownTimeout": "00:00:30",
+    "Defaults": {
+      "Worker": {
+        "MaximumConcurrency": 2,
+        "LeaseDuration": "00:01:00",
+        "StartupTimeout": "00:00:10",
+        "SettlementTimeout": "00:00:10",
+        "ExternalCallTimeout": "00:00:20"
+      },
+      "Batch": { "CollectionWindow": "00:00:01" },
+      "External": {
+        "MaximumSubmissionAttempts": 5,
+        "RetryDelay": "00:00:30",
+        "ObservationSchedule": [
+          { "After": "00:00:00", "Interval": "00:02:00" },
+          { "After": "01:00:00", "Interval": "00:15:00" }
+        ]
+      }
+    },
+    "Workers": {
+      "sender": {
+        "Enabled": true,
+        "Phases": ["Submit"],
+        "Batch": { "MaximumBatchSize": 500 },
+        "CallLimit": {
+          "Namespace": "tenant/provider-account",
+          "Endpoint": "send-api",
+          "MaximumCalls": 20,
+          "Window": "00:00:01",
+          "MaximumConcurrency": 4,
+          "FailureThreshold": 5,
+          "BreakDuration": "00:00:30"
+        }
+      },
+      "reports": {
+        "Phases": ["Observe"],
+        "Worker": { "MaximumConcurrency": 1 },
+        "Batch": { "MaximumBatchSize": 1000 }
+      }
+    }
+  }
+}
+```
+
+Use your provider's actual accepted batch size, quotas and timeouts. These example values
+are not a throughput guarantee. The report adapter must support `Observe`; submission and
+observation must use the same durable scope/binding. Call limits are per remote call, not
+per item. Configure a limit for `reports` too when the provider limits query traffic; use the
+same account/endpoint and identical limit settings when both share one quota.
+
+With `Host.CreateApplicationBuilder`, an environment override needs no code change:
+
+```bash
+export EventGuard__Workers__sender__Batch__MaximumBatchSize=750
+export EventGuard__Workers__reports__Enabled=false
+```
+
+Names are case-insensitive. Priority is built-in defaults, then supplied code options, then
+`Defaults`, then `Workers:<name>`; fields inherit independently. Within the .NET configuration
+provider chain, later providers override earlier ones. Durations use invariant `TimeSpan`
+format, for example `00:00:00.250` (250 ms), `00:02:00` (2 minutes), `1.00:00:00` (one day).
+The registration takes a startup snapshot: changing a file or environment variable requires
+a worker restart. In-flight work is not reconfigured by a file watcher.
+
+Register configuration once, before workers. Unknown keys, malformed values, invalid
+consumed options and unregistered worker profile names fail before processing; error messages
+show the setting path without its value. `Enabled=false` skips that worker's validation and
+loop, including its Kafka/RabbitMQ companion ingress. It does not cancel durable operations
+or prevent an application's direct calls to `SubmitAsync`.
+
+| Profile setting | Default and supported values |
+| --- | --- |
+| `Enabled` | `true` |
+| `Worker.MaximumConcurrency` | 4 for typed consumers/single workers; 1 for batch workers; 1–1,024, per process and per selected phase |
+| `Worker.LeaseDuration` | 30 seconds; positive, at most one hour |
+| `Worker.IdleDelay`, `Worker.FaultDelay` | 250 ms / 1 second; positive, at most one minute |
+| `Worker.StartupTimeout`, `Worker.SettlementTimeout` | 5 / 10 seconds; positive supported timer durations |
+| `Worker.ExternalCallTimeout` | Omitted: remaining lease; configured: positive timer duration, capped by the actual remaining lease and shared permit |
+| `Retry.MaximumAttempts`, `InitialDelay`, `MaximumDelay`, `JitterRatio` | 5 / 1 second / 1 minute / 0.2; attempts at least 1, positive delays with initial ≤ maximum ≤ 30 days, jitter 0–1 |
+| `Batch.MaximumBatchSize`, `CollectionWindow` | 100 / 1 second; batch size any positive `Int32`, collection capped by one quarter of the lease; memory, payload size and provider limits still apply |
+| `Batch.MaximumPayloadBytes` | 8 MiB; integer bytes, at least 1 MiB. Bounds raw action payloads per remote call; provider encoding may add bytes. |
+| `Batch.RequireNativeStorage` | `false`; set `true` to reject a third-party store that lacks `IExternalActionBatchStore`. PostgreSQL and SQL Server implement it in the unreleased source. |
+| `External.MaximumSubmissionAttempts`, `RetryDelay` | 5 / 30 seconds; 1–1,000 attempts, delay 10 ms–1 day |
+| `External.ObservationInterval` | 1 minute; 10 ms–1 day, alternative to a schedule |
+| `External.ObservationSchedule` | Optional 1–64 `{After, Interval}` steps; starts at zero, strictly increasing `After` up to 365 days; intervals 10 ms–1 day |
+| `Phases` | Adapter-supported phases; explicit unique subset of `Submit`, `Reconcile`, `Observe` |
+| `CallLimit` | Disabled when absent; configure `Namespace`, `Endpoint`, `MaximumCalls` and optionally `Window` (1 second), `MaximumConcurrency` (8), `FailureThreshold` (5), `BreakDuration` (30 seconds). `Enabled=false` disables the binding. A shared limiter store is required. |
+| `Polling.MaximumItems`, `PollInterval`, `SweepInterval` | 100 / 250 ms / 1 second; native store listing/sweep maximum 1,000. See low-level workers below. |
+| Root `ShutdownTimeout` | 30 seconds for the whole host, including other hosted services; positive supported timer duration. Set the container termination grace period above it. |
+
+Supported timer durations are at most 4,294,967,294 ms. Cancellation is cooperative: adapters,
+custom validation callbacks and handlers must honor their cancellation token. Settlement is
+a separate budget so shutdown or a call timeout can still persist the observed outcome.
+Worker and database clocks must remain synchronized for lease deadlines.
+An uncertain send remains `Unknown`; changing retry settings never authorizes an automatic resend.
+
+A worker-level observation interval replaces an inherited schedule, and a worker-level schedule
+replaces an inherited interval. Arrays replace the `Defaults` array as a unit. Across .NET
+providers for the **same** configuration path, indexed array entries merge: provide the complete
+array consistently, or use separate profiles when changing its length. Quota fingerprints must
+agree across replicas and restarts; a quota identity is not a way to bypass an existing budget.
+
+`AddJsonConsumer`, `AddKafkaJsonConsumer` and `AddRabbitMqJsonConsumer` automatically consume
+`Worker`/`Retry`. `AddExternalBatchService` consumes `Worker`/`Batch`/`External`/`CallLimit`/`Phases`.
+`Enabled` applies to all registrations. For existing low-level workers, explicitly pass options
+from the same configuration snapshot when constructing the DI-owned instance:
+
+```csharp
+var settings = eventGuard.Configuration!;
+var outbox = new OutboxDispatcher(store, producerScope, transports,
+    settings.GetRetryPolicy("outbox"), settings.GetWorkerOptions("outbox"));
+eventGuard.AddWorker("outbox", (_, ct) => outbox.RunAsync(ct));
+
+var reports = new ExternalNoticeWorker(store, producerScope, binding, bindingVersion,
+    settings.GetExternalPolicy("callbacks"), settings.GetPollingOptions("callbacks"));
+eventGuard.AddWorker("callbacks", (_, ct) => reports.RunAsync(ct));
+```
+
+`AddWorker` supervises a supplied loop; it cannot inject processing options into an already
+constructed object. Its validation callback uses the configured startup budget. Use
+`GetBatchOptions`, `GetExternalPolicy`, `GetCallLimit` and `GetPhases` for manually constructed
+external workers. The new `SnapshotWorker` overload accepts a `PollingWorkerOptions` after
+`leaseDuration`. For `WorkflowWorker`, pass `polling.PollInterval` and `polling.MaximumItems`
+as its third/fourth arguments; workflow intervals remain 10 ms–5 minutes (default 1 second).
+Snapshot polling controls how many capture requests are listed, not the snapshot's item batch size.
+
+The generated template uses `AddEventGuard(builder.Configuration, "EventGuard:Processing")`
+so its application-specific provider/schema/identity settings remain separate. Its existing
+`MaximumConcurrency` and `LeaseSeconds` are code defaults; `Processing:Defaults` and
+`Processing:Workers:products` override them. For example:
+`EventGuard__Processing__Workers__products__Worker__MaximumConcurrency=8`.
+
+Database connections/schema, Kafka's native `ConsumerConfig`, RabbitMQ's `ConnectionFactory`,
+HTTP clients and dashboard/OIDC settings remain in their documented application configuration.
+Keep credentials in your secret provider. Business contracts, payload byte limits, supported
+store bounds and durable identity/version rules are explicit compatibility constraints;
+operational configuration does not remove them. Snapshot batch/delivery mode and action
+observation deadlines belong to the submitted definition/action and remain stable for existing work.
 
 ### Typed Kafka and RabbitMQ registration
 
@@ -1280,7 +1545,7 @@ Core owns `WorkAcceptance`, `WorkLifecycle`, `OutboxLifecycle` and `OutboxRecove
 decisions. Providers read under native locks and apply expected state/version/token
 with attempts and receipts in the same transaction. Decision objects are not locks or
 authorization proofs. Runtime references Core only; providers never reference Runtime/UI.
-Hosting references Runtime and Microsoft hosting abstractions; it has no native database or broker dependencies.
+Hosting references Runtime and Microsoft hosting/configuration libraries; it has no native database or broker dependencies.
 Operations metadata readers do not reference worker providers. Dashboard contains no
 provider SQL or direct state updates and is not on the worker's synchronous path.
 
@@ -1313,7 +1578,7 @@ Run optional migrations with a deployment/migration identity before starting wor
 ```csharp
 // The same methods exist on PostgreSqlWorkStore and SqlServerWorkStore.
 await store.InitializeJobsAsync();             // Jobs schema 2, including item receipts
-await store.InitializeExternalActionsAsync(); // External actions schema 4; optional
+await store.InitializeExternalActionsAsync(); // Published dev.30: schema 4; unreleased source: schema 5; optional
 ```
 
 These migrations first check/initialize the base store. They are additive and independently
@@ -1392,7 +1657,8 @@ propagate so the entire transactional batch rolls back. Keys are acquired in a s
 
 This is atomic **database** batching. For external work, create one `ExternalAction` intent per
 item inside the batch. Use `ExternalActionWorker` for individual calls or the optional
-`ExternalBatchWorker` for one service call carrying up to 100 independently tracked items.
+`ExternalBatchWorker` for one service call carrying a configured maximum of independently
+tracked items (100 by default; see the version note below).
 A successful item must not be resent just because another item's service call failed.
 Automatic source preparation is available through the separate snapshot module.
 
@@ -1402,6 +1668,15 @@ Automatic source preparation is available through the separate snapshot module.
 observing multiple actions in one real remote call. The application supplies its service
 client, authentication, DTOs and response interpretation. No SMS-specific model or endpoint
 is assumed. Register the adapter once:
+
+**Unreleased configuration update:** published `0.1.0-dev.30` accepts batch sizes from 1 to
+100. The current source removes that fixed ceiling: `maximumBatchSize` accepts any positive
+integer, with 100 retained as the default. For example,
+`new ExternalBatchWorkerOptions(maximumBatchSize: 500)` allows up to 500 items per call.
+Read this value from your application's configuration and choose it to match the provider's
+limits and your memory/time budgets. Sending, reconciliation and observation registrations
+can use different sizes. Changing this setting requires restarting the registered workers.
+The example below uses 100 and is compatible with the published package as well.
 
 ```csharp
 using EventGuard;
@@ -1482,7 +1757,8 @@ and `CanObserve = false`; normalized authenticated reports still enter through t
 observation notice API. Validate request DTOs before enqueueing. Never infer all-item acceptance
 from HTTP 200, or treat a timeout as proof of rejection. Missing/duplicate/null or phase-invalid
 item results become `Unknown`; unrelated response IDs are counted but cannot update another
-action. Valid results for the other items still apply. Responses exceeding 100 entries are
+action. Valid results for the other items still apply. In the current source, responses
+exceeding the configured batch size (100 by default) are
 rejected as ambiguous. An exception or lost whole reply makes the invoked items `Unknown`.
 Only explicit `NotAcceptedRetryable` evidence authorizes another send, within the attempt limit.
 
@@ -1496,14 +1772,17 @@ can look up a lost submission **only** by the original whole-batch request ID ne
 batch-receipt adapter that is not yet implemented; do not declare reconciliation support for
 that contract. Unknown items remain held rather than being automatically resent.
 
-Collection stops at the size limit, an empty claim, or its time budget; it does not wait for a
-full batch. Concurrency counts calls, so two loops can have up to 200 active items at size 100.
-Each action remains bounded to 1 MiB; a 100-item call can therefore carry up to 100 MiB of raw
-payload, before serialization and copies. Choose a smaller batch size for large data and enforce
-your provider's request limits in its adapter. Byte-aware packing is still a roadmap item.
-Current database claims and settlements remain per item; this feature reduces remote calls
-and does not claim bulk SQL throughput. The earliest lease bounds the call timeout. A crash
-while claiming or settling can leave unresolved items for reconciliation, never blind resend.
+Collection stops at the item limit, raw payload byte budget, an empty claim, or its time
+budget; it does not wait for a full batch. Concurrency counts calls, so two loops can have up
+to 200 active items at size 100. Increasing the item limit does not extend collection, call
+or settlement time budgets. Each action remains bounded to 1 MiB. The unreleased source
+adds `MaximumPayloadBytes` (8 MiB by default, at least 1 MiB so any valid single action can
+make progress). It bounds the sum of raw action payloads; result bytes, metadata, serialization
+and copies need additional memory. The adapter must enforce its provider's encoded request
+limit. The collection window is checked between storage operations; database/client timeouts
+and cancellation still bound a slow operation. The earliest lease bounds the remote call.
+Published dev.30 uses per-item storage. The unreleased source automatically selects the native
+multi-item path described below, with an explicit fallback for third-party stores.
 
 Schedule ages are measured from persisted acceptance and pending due times survive restarts.
 The final interval repeats until the action's observation deadline; the worker wakes at the
@@ -1516,6 +1795,102 @@ These semantics address the per-item correlation and partial-failure concerns il
 [Microsoft Graph batching](https://learn.microsoft.com/en-us/graph/json-batching) and
 [Dapr bulk messaging](https://docs.dapr.io/developing-applications/building-blocks/pubsub/pubsub-bulk/).
 Those references do not imply a bundled Graph or Dapr adapter.
+
+### Native external storage (unreleased)
+
+`IExternalActionBatchStore` is an optional capability alongside `IExternalActionStore`.
+The native PostgreSQL implementation transfers typed arrays and uses set-based updates;
+SQL Server uses table-valued parameters (TVPs). Claim, evidence, state changes and application
+result-work creation no longer execute one database operation per item. Each storage page
+has its own short transaction; no transaction spans the remote service call. Existing
+single-item methods and custom stores remain usable.
+
+The worker combines storage pages within `MaximumBatchSize`, `MaximumPayloadBytes` and
+`CollectionWindow`. Storage pages are limited to 1,000 items and 64 MiB of raw action payload,
+independently of the configurable remote call size; settlement is also paged by count and
+bytes. These storage limits are memory/transaction bounds, not a 1,000-item provider limit.
+The worker's `UsesNativeStorage` reports the chosen capability. Set `RequireNativeStorage`
+to fail at construction/startup when a store cannot provide it. With a single-item fallback,
+the collector reserves 1 MiB before taking each next claim because it cannot peek at its
+payload; this may produce smaller batches. It does not acquire overflow items and leave
+them unsent.
+
+For example, with the shared configuration registration described above:
+
+```json
+{
+  "EventGuard": {
+    "Workers": {
+      "partner": {
+        "Batch": {
+          "MaximumBatchSize": 500,
+          "MaximumPayloadBytes": 8388608,
+          "CollectionWindow": "00:00:01",
+          "RequireNativeStorage": true
+        }
+      }
+    }
+  }
+}
+```
+
+A nonempty `ExternalBatchClaimRequest` persists its semantics and exact membership. Retrying
+the same request ID after a lost commit reply returns only its still-owned members; it never
+replaces completed/expired members or adds newly arrived work. Changed scope-local request
+semantics are rejected. Empty polls make no durable changes and do not consume a request ID,
+so idle workers do not grow the receipt ledger. A recovery-only page is durable even if it
+returns no callable items. This is a **storage acquisition receipt**, not a durable provider
+call receipt: a remote call can combine pages, and whole-call provider reconciliation remains
+separate open work.
+
+`ExternalBatchSettlementRequest` commits one page atomically while retaining individual
+version/token/lease checks. Identical repeated evidence is idempotent; conflicting evidence
+rejects and rolls back the page. A late response is recorded without overwriting its current
+owner or recovery state. Per-item provider rejections/Unknown results are ordinary independent
+outcomes and do not roll back other valid outcomes. Result work for every configured
+`ExternalResultTarget` is inserted in that same transaction. Application handler execution
+remains separate and retryable. A failed storage page never causes an automatic repeat of the
+remote call; retry identical saved evidence or reconcile unresolved items.
+
+**Upgrade:** stop external writers/workers, back up and call `InitializeExternalActionsAsync()`
+with migration privileges. External schema 5 adds claim receipts, nullable attempt membership,
+an index and SQL Server TVP types. Startup rejects schema 4 until migration.
+SQL Server batch workers also check `EXECUTE` and `REFERENCES` on the four new table types
+before taking work. Grant these to your existing worker role with the deployment identity,
+in addition to its existing table permissions. Use your own schema/role names:
+
+```sql
+GRANT EXECUTE, REFERENCES ON TYPE::eventguard.external_batch_ids TO eventguard_worker;
+GRANT EXECUTE, REFERENCES ON TYPE::eventguard.external_batch_changes TO eventguard_worker;
+GRANT EXECUTE, REFERENCES ON TYPE::eventguard.external_batch_projections TO eventguard_worker;
+GRANT EXECUTE, REFERENCES ON TYPE::eventguard.external_batch_bindings TO eventguard_worker;
+```
+
+See [SQL Server TVP permissions](https://learn.microsoft.com/en-us/sql/relational-databases/tables/use-table-valued-parameters-database-engine#permissions).
+These checks cover the native types; they do not validate arbitrary application SQL grants. Upgrades from
+schemas 1 and 4, preservation of an in-flight single claim, and repeated initialization have
+native integration tests. Do not mix dev.30 and schema-5 writers. Rollback requires a verified
+backup restore, not just an older package. Receipt/evidence retention is still open; do not
+delete receipts independently of member attempts.
+
+**Local comparison:** `ExternalBatchExchangeTests` uses the actual database protocol on
+loopback, 1 KiB action payloads and 64-byte results. Both paths claim and settle the same
+number of actions; optional application result work is included atomically. Seeding, result
+handler execution and remote service calls are outside the measured interval. There are two
+samples per path, alternating native/single-item, on local PostgreSQL 18 and emulated SQL
+Server 2022. Other correctness tests can share the local machine/server, so elapsed ranges
+are indicative. These are development measurements, not sustained-capacity qualification.
+
+| 250 items, with application result work | Single-item protocol exchanges | Native exchanges | Single-item elapsed | Native elapsed |
+| --- | --- | --- | --- | --- |
+| PostgreSQL / .NET 10 | 5,250 | 19 | 2,368–3,355 ms | 43–64 ms |
+| SQL Server / .NET 10 | 6,002 | 18 | 3,556–3,748 ms | 106–186 ms |
+
+The same tests cover pages of 100 items; native exchange counts remain 19/18 with result work,
+and 16 without it. Counts include transaction/control exchanges, so two public storage calls
+are not claimed to be two network round trips. No timing threshold is used as a correctness
+assertion. Large backlogs, payload distributions, multi-node failover and long-running SQL
+Server/PostgreSQL capacity measurements remain required.
 
 ### Send through any service adapter
 
@@ -1650,7 +2025,8 @@ The target (scope/name/version) is immutable for an action. Keep the original ha
 until its pending results drain; a different version uses another work scope. Existing intents
 cannot acquire a result target retroactively. For an external-schema-1 upgrade: stop writers
 and workers, back up the database, call `InitializeExternalActionsAsync()` once with migration
-privileges to reach schema 4, then start this package version and validate the schema. The
+privileges to reach schema 4 in dev.30 (schema 5 in the unreleased source), then start the
+matching package version and validate the schema. The
 migration preserves old intents and their fingerprints; do not mix old and new module writers.
 Rollback requires restoring the backup, not just downgrading the package. Result snapshots
 and positions currently retain data alongside external action evidence; ordinary work payload
@@ -1778,7 +2154,7 @@ Switching new operations to another mode does not modify in-flight operations.
 ### Shared service limits and durable reports
 
 ```csharp
-await store.InitializeExternalActionsAsync(); // schema 4: results + limits + notices
+await store.InitializeExternalActionsAsync(); // dev.30: schema 4; unreleased source: schema 5 (also native batches)
 var budget = new ExternalCallLimit("tenant/provider-account", "send-api",
     maximumCalls: 500, window: TimeSpan.FromSeconds(1), maximumConcurrency: 8,
     failureThreshold: 5, breakDuration: TimeSpan.FromSeconds(30));
@@ -2284,14 +2660,24 @@ Rich capabilities must remain optional and compose through Core contracts, Runti
 Hosting registration and native store adapters. Application DTOs, filter UI, business keys,
 service clients and application status mappings remain application-owned. A feature is not
 production-qualified merely because an API exists or the package can be installed.
+The [general-purpose design requirements](#general-purpose-design-requirements) apply to
+every row: qualify reusable behavior across business domains and supported providers.
+
+Development order is native bulk storage and count/byte/time bounds, then scheduling,
+receipt and quota policies, recovery/retention, and additional transport integrations.
+Each increment also needs integration examples, diagnostics and relevant measurements.
+Dapr is an optional adapter; it must not become a prerequisite for direct broker or
+brokerless use. SQL Server and PostgreSQL are separate performance qualification targets.
 
 | Capability | Current status | Acceptance evidence / remaining requirement |
 | --- | --- | --- |
 | Remote batches with per-item results | Implemented in dev.30 | 250 items in calls of 100/100/50; reordered, missing, duplicate and invalid results; whole reply loss; cancellation; failed status persistence. Native PostgreSQL/SQL Server contracts and package-only composition checks cover .NET 8/10 with a synthetic provider. |
 | Easy service integration | Implemented in dev.30 | One `AddExternalBatchService` registration; JSON helpers; capability/schema validation before work; cooperative shutdown. Provider client and mapping are application code. |
 | Bulk report lookup and stepped polling | Implemented in dev.30 | Separate reconciliation/observation phases; elapsed-age intervals; durable due times and deadline capping. No resubmission on report timeout. |
+| Shared configuration and named worker profiles | Implemented in the working tree; unreleased | JSON/environment settings, startup validation, independent batch/concurrency/timing/phase settings, worker enablement and package-only template checks. Existing protocol and identity constraints remain enforced. |
+| Fixed elapsed checkpoints | Open | Durable due times at configured offsets from a defined origin, explicit missed-checkpoint behavior, restart/callback races and terminal deadlines. Stepped intervals do not substitute for this policy. |
 | Provider-directed Retry-After and jitter | Open | Persist per-item retry hints, apply only to legal state transitions, test restart/clock boundaries and mixed partial throttling. |
-| Efficient and bounded batching | Open beyond item-count bounds | Byte-aware packing, provider limits, native multi-item claim/settlement, lease collection budget and sustained SQL Server measurements. Preserve unresolved items when batch membership changes. |
+| Efficient and bounded batching | Native storage and raw byte/count/time bounds implemented in the working tree; unreleased | PostgreSQL arrays/set-based writes; SQL Server TVPs; atomic application result work; explicit fallback; real lost-commit tests; 100/250-item local exchange/timing comparisons. Encoded provider byte limits remain adapter-owned. Sustained large-backlog qualification on both stores is still open. |
 | Durable provider batch receipts | Open for providers that only reconcile whole batches | Freeze original call membership and provider/client batch ID before invocation; recover a lost whole-call reply by that ID and distribute evidence to item records. Current adapters must reconcile by stable item ID or a saved provider reference. |
 | Call and recipient quotas | Calls implemented within one store; weighted units open | Distinguish requests from recipients/bytes; separate send/query quotas; validate burst boundaries and shared-account behavior. Separate stores currently do not share a quota. |
 | Dapr integration | Open | Typed ingress/egress registration; durable acceptance before SUCCESS; per-entry outcomes; sidecar restart, redelivery and authentication tests; KEDA deployment example. Dapr bulk API maturity must be checked for the selected platform version. |
@@ -2299,6 +2685,8 @@ production-qualified merely because an API exists or the package can be installe
 | External payload retention | Open beyond existing work/outbox and snapshot-staging cleanup | Terminal-state/age criteria, unresolved-record protection, archive acknowledgement, idempotent pruning and privacy-safe deduplication tombstones; include backups and result evidence. |
 | Audited unknown resolution | Automatic evidence-based reconciliation exists; operator workflow open | Authorized, version-checked decisions with actor/reason/evidence, dry-run preview and no default resend. Do not expose arbitrary force-resend as a safety guarantee. |
 | Batch diagnostics | Existing module monitoring; batch-level metrics open | Explain quota wait, missing response, reconciliation and overdue report; export call/item/partial-result metrics without payloads or personal data. |
+| Backpressure, fairness and ordering | Local concurrency/revision protections exist; general policies open | Bound queued items/bytes, define overload behavior, isolate noisy tenants and support explicit partition/key ordering where requested. Test slow consumers, hot keys and recovery across replicas. |
+| Cross-workload capacity evidence | Local measurements exist; broad qualification open | Run the general-purpose workload matrix with equivalent durability and application behavior on each supported store. Report per-stage useful throughput, tail latency, round trips and resource costs; retain failed/unrun cases. |
 | Production qualification and stable upgrades | Open | Representative SQL Server backlog/soak/failover and backup/restore; real provider/Dapr/OpenShift configuration; migration from published versions; package provenance/dependency review and explicit support policy. |
 | Independent onboarding | Automated checks exist; independent team trial open | A team integrates its own model, store and provider using only this README, records friction and completes failure recovery exercises. |
 
