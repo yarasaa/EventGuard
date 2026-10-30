@@ -65,7 +65,7 @@ jobs:
           --health-cmd "pg_isready -U eventguard -d eventguard_test"
           --health-interval 2s --health-timeout 3s --health-retries 20
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: python3 eng/check-repository.py
       - run: python3 eng/test-release.py
       - run: python3 eng/bootstrap_dotnet.py
@@ -100,9 +100,10 @@ jobs:
         run: python3 eng/verify-release.py record --packages .artifacts/packages --commit "$GITHUB_SHA"
       - name: Save failure diagnostics
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: verification-failure-${{ github.sha }}-${{ github.run_attempt }}
+          include-hidden-files: true # .artifacts is hidden; upload only the explicit diagnostic paths below.
           path: |
             .artifacts/test-results/*.trx
             .artifacts/composable-verify-*/commands.log
@@ -110,9 +111,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
       - name: Save verified packages
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nuget-packages-${{ github.sha }}
+          include-hidden-files: true # Only the verified package files and manifest below.
           path: |
             .artifacts/packages/*.nupkg
             .artifacts/packages/release.json

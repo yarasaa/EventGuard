@@ -110,21 +110,28 @@ public sealed class HostingTests
         var builder = Builder();
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var fail = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopping = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         builder.Services.AddEventGuard().AddWorker("sibling", async (_, ct) =>
         {
             started.SetResult();
             try { await Task.Delay(Timeout.Infinite, ct); }
             finally { stopped.SetResult(); }
-        }).AddWorker("fault", async (_, _) =>
+        }).AddWorker("fault", async (_, ct) =>
         {
-            await started.Task;
-            await Task.Yield();
+            await fail.Task.WaitAsync(ct);
             if (!returns) throw new IOException("unexpected");
         });
         using var host = builder.Build();
+        var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
+        using var registration = lifetime.ApplicationStopping.Register(() => stopping.TrySetResult());
         await host.StartAsync();
-        await stopped.Task.WaitAsync(TimeSpan.FromSeconds(3));
-        Assert.True(host.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping.IsCancellationRequested);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        // Yielding to the scheduler does not guarantee StartAsync has returned on .NET 8.
+        // Trigger the runtime failure only after startup, and observe both shutdown signals.
+        fail.SetResult();
+        await Task.WhenAll(stopped.Task, stopping.Task).WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.True(lifetime.ApplicationStopping.IsCancellationRequested);
         Assert.Equal("fault", host.Services.GetRequiredService<EventGuardHostStatus>().Failure!.WorkerName);
         await host.StopAsync();
     }

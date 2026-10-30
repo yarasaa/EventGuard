@@ -146,10 +146,11 @@ public sealed partial class SqlServerWorkStore : IExternalResultBatchStore<SqlSe
                 a.fingerprint,a.origin_work_id,a.origin_request_id,a.result_handler,a.result_handler_version,
                 u.version,u.state,u.observation,u.phase,u.provider_reference,u.reason,u.state_data,
                 u.response_kind,u.response_reason,u.response_reference,u.response_data,w.fingerprint,w.scope_id
-            FROM input x JOIN {_schema}.works w ON w.id=x.work_id AND w.version=x.version
-            JOIN {_schema}.external_result_updates u ON u.work_id=w.id
-            JOIN {_schema}.external_actions a ON a.scope_id=u.scope_id AND a.id=u.action_id
+            FROM input x JOIN {_schema}.works w WITH(FORCESEEK) ON w.id=x.work_id AND w.version=x.version
+            JOIN {_schema}.external_result_updates u WITH(FORCESEEK) ON u.work_id=w.id
+            JOIN {_schema}.external_actions a WITH(FORCESEEK) ON a.scope_id=u.scope_id AND a.id=u.action_id
             WHERE u.handler_scope_id=@handler AND u.scope_id=@scope
+            OPTION(FORCE ORDER,LOOP JOIN,MAXDOP 1)
             """;
         command.Parameters.AddValue("scope", target.Scope.Id); command.Parameters.AddValue("handler", target.WorkScope.Id);
         var updates = new List<ExternalActionUpdate>();

@@ -20,7 +20,7 @@ public sealed partial class SqlServerWorkStore
             command.CommandText = $"""
                 WITH input AS ({input}) SELECT {columns},w.lease_token,w.lease_until
                 FROM input x JOIN {_schema}.works w WITH(UPDLOCK,READPAST,ROWLOCK,FORCESEEK) ON w.id=x.work_id AND w.version=x.version
-                WHERE w.scope_id=@scope ORDER BY w.id OPTION(MAXDOP 1)
+                WHERE w.scope_id=@scope ORDER BY w.id OPTION(FORCE ORDER,LOOP JOIN,MAXDOP 1)
                 """;
             var results = new List<ResultCandidate>();
             await using var reader = await command.ExecuteReaderCheckedAsync(ct);
@@ -44,9 +44,9 @@ public sealed partial class SqlServerWorkStore
                 )
                 SELECT {columns},w.lease_token,w.lease_until,
                     CONVERT(bigint,COALESCE(DATALENGTH(a.payload),0))+COALESCE(DATALENGTH(u.state_data),0)+COALESCE(DATALENGTH(u.response_data),0)
-                FROM candidates w LEFT JOIN {_schema}.external_result_updates u ON u.work_id=w.id
-                LEFT JOIN {_schema}.external_actions a ON a.scope_id=u.scope_id AND a.id=u.action_id
-                ORDER BY w.ordering,w.id OPTION(MAXDOP 1)
+                FROM candidates w LEFT JOIN {_schema}.external_result_updates u WITH(FORCESEEK) ON u.work_id=w.id
+                LEFT JOIN {_schema}.external_actions a WITH(FORCESEEK) ON a.scope_id=u.scope_id AND a.id=u.action_id
+                ORDER BY w.ordering,w.id OPTION(FORCE ORDER,LOOP JOIN,MAXDOP 1)
                 """;
             var results = new List<ResultCandidate>(); long bytes = 0;
             await using var reader = await command.ExecuteReaderCheckedAsync(ct);
@@ -94,8 +94,9 @@ public sealed partial class SqlServerWorkStore
             """;
         await command.ExecuteNonQueryCheckedAsync(ct);
         command.CommandText = $"""
-            WITH input AS ({input}) SELECT p.action_id,p.version FROM {_schema}.external_result_positions p
-            JOIN input x ON x.action_id=p.action_id WHERE p.scope_id=@scope AND p.handler_scope_id=@handler
+            WITH input AS ({input}) SELECT p.action_id,p.version FROM input x
+            JOIN {_schema}.external_result_positions p WITH(FORCESEEK) ON x.action_id=p.action_id
+            WHERE p.scope_id=@scope AND p.handler_scope_id=@handler OPTION(FORCE ORDER,LOOP JOIN,MAXDOP 1)
             """;
         await using var reader = await command.ExecuteReaderCheckedAsync(ct);
         while (await reader.ReadCheckedAsync(ct)) positions.Add(reader.GetGuid(0), reader.GetInt64(1));
@@ -111,11 +112,13 @@ public sealed partial class SqlServerWorkStore
         var input = AddResultInput(command, table, "external_result_versions");
         command.Parameters.AddValue("scope", target.Scope.Id); command.Parameters.AddValue("handler", target.WorkScope.Id);
         command.CommandText = $"""
-            UPDATE p SET version=x.version FROM {_schema}.external_result_positions p JOIN @rows x ON x.action_id=p.action_id
-            WHERE p.scope_id=@scope AND p.handler_scope_id=@handler;
+            UPDATE p SET version=x.version FROM @rows x
+            JOIN {_schema}.external_result_positions p WITH(ROWLOCK,INDEX(1)) ON x.action_id=p.action_id
+            WHERE p.scope_id=@scope AND p.handler_scope_id=@handler OPTION(FORCE ORDER,LOOP JOIN,MAXDOP 1);
             INSERT INTO {_schema}.external_result_positions(scope_id,action_id,handler_scope_id,version)
             SELECT @scope,x.action_id,@handler,x.version FROM @rows x
-            WHERE NOT EXISTS(SELECT 1 FROM {_schema}.external_result_positions p WHERE p.scope_id=@scope AND p.action_id=x.action_id AND p.handler_scope_id=@handler);
+            WHERE NOT EXISTS(SELECT 1 FROM {_schema}.external_result_positions p WITH(FORCESEEK) WHERE p.scope_id=@scope AND p.action_id=x.action_id AND p.handler_scope_id=@handler)
+            OPTION(FORCE ORDER,LOOP JOIN,MAXDOP 1);
             """;
         await command.ExecuteNonQueryCheckedAsync(ct);
     }
@@ -143,15 +146,23 @@ public sealed partial class SqlServerWorkStore
         var input = AddResultInput(command, table, "external_result_changes");
         command.Parameters.AddValue("now",now);
         command.CommandText = $"""
+            -- Drive writes from this page's IDs. Scanning the target can take update locks on
+            -- another page and deadlock with its retained claim locks, even for disjoint IDs.
             UPDATE w SET state=x.state,version=x.version,attempt_count=x.attempt_count,generation_attempt=x.generation_attempt,
                 next_attempt_at=x.next_at,last_reason=x.reason,lease_token=NULL,lease_until=NULL,
                 completed_at=CASE WHEN x.state=3 THEN @now ELSE w.completed_at END
-            FROM {_schema}.works w JOIN @rows x ON w.id=x.work_id AND w.version=x.expected;
+            FROM @rows x JOIN {_schema}.works w WITH(ROWLOCK,INDEX(1)) ON w.id=x.work_id AND w.version=x.expected
+            OPTION(FORCE ORDER,LOOP JOIN,MAXDOP 1);
             DECLARE @changed int=@@ROWCOUNT;
             UPDATE a SET status='Abandoned',reason='lease-recovered',finished_at=@now
-            FROM {_schema}.attempts a JOIN @rows x ON a.id=x.abandoned WHERE a.finished_at IS NULL;
+            FROM @rows x JOIN {_schema}.attempts a WITH(ROWLOCK,INDEX(1)) ON a.id=x.abandoned
+            WHERE a.finished_at IS NULL OPTION(FORCE ORDER,LOOP JOIN,MAXDOP 1);
+            -- Favor a point lookup for the first FK check instead of an eager spool over
+            -- all works (including other pages' X locks). FAST 1 changes the plan goal,
+            -- not the number of inserted attempts; every @rows member is inserted.
             INSERT INTO {_schema}.attempts(id,work_id,number,generation,status,reason,started_at,finished_at)
-            SELECT attempt_id,work_id,attempt_count,generation,attempt_status,reason,started_at,@now FROM @rows;
+            SELECT attempt_id,work_id,attempt_count,generation,attempt_status,reason,started_at,@now FROM @rows
+            OPTION(LOOP JOIN,FAST 1,MAXDOP 1);
             SELECT @changed;
             """;
         if (Convert.ToInt32(await command.ExecuteScalarCheckedAsync(ct)) != completed.Count)

@@ -63,8 +63,69 @@ public sealed class NativeResultBatchTests(DatabaseFixture db) : IClassFixture<D
     {
         var (_,t)=await Seed(200);
         var results=await Task.WhenAll(Run(t,50),Run(t,50),Run(t,50),Run(t,50));
-        Assert.Equal(200,results.Sum(r=>r.Applied));Assert.Equal(200,results.SelectMany(r=>r.Works).Select(w=>w.Work.Id).Distinct().Count());
+        Assert.All(results.SelectMany(r=>r.Works), w=>Assert.Equal(ExecutionStatus.Completed,w.Status));
+        Assert.True(results.Sum(r=>r.Applied)==200,
+            "Applied items per poll: "+string.Join(",",results.Select(r=>r.Applied)));
+        Assert.Equal(200,results.SelectMany(r=>r.Works).Select(w=>w.Work.Id).Distinct().Count());
         Assert.Equal(200,await Count(t));
+    }
+    [Theory]
+    [InlineData(false, false, 50)]
+    [InlineData(true, false, 50)]
+    [InlineData(false, true, 50)]
+    [InlineData(true, true, 50)]
+    [InlineData(false, true, 1)]
+    [InlineData(false, true, 250)]
+    public async Task Another_page_can_finish_while_a_callback_holds_its_work_locks(bool fails, bool exclusive, int pageSize)
+    {
+        var (_, target) = await Seed(Math.Max(200, pageSize * 2));
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var held = db.Store.ExecuteResultBatchAsync(target, new(pageSize), async (updates, session, ct) =>
+        {
+            if (exclusive)
+            {
+                // Also model the exclusive locks retained after completing a page, before commit.
+                // Foreign-key validation for another page's attempts must not scan these rows.
+                await using var command = session.CreateCommand($"""
+                    SELECT w.id FROM OPENJSON(@ids) WITH(id uniqueidentifier '$') x
+                    JOIN {db.Schema}.external_result_updates u WITH(FORCESEEK) ON u.scope_id=@scope AND u.action_id=x.id
+                    JOIN {db.Schema}.works w WITH(XLOCK,ROWLOCK,FORCESEEK) ON w.id=u.work_id
+                    OPTION(FORCE ORDER,LOOP JOIN,MAXDOP 1)
+                    """);
+                command.Parameters.AddWithValue("ids", System.Text.Json.JsonSerializer.Serialize(updates.Select(u=>u.Action.Id)));
+                command.Parameters.AddWithValue("scope", target.Scope.Id);
+                await command.ExecuteNonQueryAsync(ct);
+            }
+            entered.SetResult();
+            await release.Task.WaitAsync(ct);
+            await Write(updates, session, ct);
+        }, Retry);
+        ExternalResultBatchExecution first;
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            // The other page must commit (including failure recording) before releasing the first.
+            // A target-table scan would touch the first page's retained locks and block here.
+            var other = await db.Store.ExecuteResultBatchAsync(target,
+                new(pageSize, executionTimeout: TimeSpan.FromSeconds(5), failureRecordingTimeout: TimeSpan.FromSeconds(3)),
+                async (updates, session, ct) =>
+                {
+                    await Write(updates, session, ct);
+                    if (fails) throw new IOException("injected");
+                }, Retry);
+            Assert.Equal(pageSize, other.Works.Count);
+            Assert.Equal(fails ? 0 : pageSize, other.Applied);
+            Assert.All(other.Works, w => Assert.Equal(
+                fails ? ExecutionStatus.RetryScheduled : ExecutionStatus.Completed, w.Status));
+        }
+        finally
+        {
+            release.TrySetResult();
+            first = await held;
+        }
+        Assert.Equal(pageSize, first.Applied);
+        Assert.Equal(fails ? pageSize : pageSize * 2, await Count(target));
     }
     [Fact]
     public async Task Latest_version_is_coalesced_and_late_single_worker_cannot_regress_it()
