@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Prometheus query adapter for EventGuard worker monitoring. Read bounded worker health, processing observations, expected instance counts and historical metrics from an existing Prometheus server for operations dashboards. Experimental preview; not production ready.</Description>
+    <PackageTags>$(PackageTags);prometheus;promql;monitoring;observability;metrics;worker-health;operations;time-series</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../EventGuard.Operations/EventGuard.Operations.csproj" />

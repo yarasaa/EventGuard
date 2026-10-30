@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Entity Framework Core integration for EventGuard. Enlist an EF Core DbContext in the existing EventGuard connection and transaction so application changes, message completion and outgoing events commit together. Experimental preview; not production ready.</Description>
+    <PackageTags>$(PackageTags);efcore;entity-framework-core;dbcontext;transactions;transactional-outbox;outbox;inbox;idempotency</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../EventGuard.Core/EventGuard.Core.csproj" />

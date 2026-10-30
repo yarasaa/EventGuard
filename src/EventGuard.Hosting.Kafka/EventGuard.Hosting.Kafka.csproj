@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFrameworks>net8.0;net10.0</TargetFrameworks><PackageReadmeFile>README.md</PackageReadmeFile></PropertyGroup>
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Apache Kafka consumer hosting for EventGuard in .NET Worker Services and ASP.NET Core. Register typed JSON consumers and supervised broker ingress through dependency injection, with configuration validation and graceful shutdown. Experimental preview; not production ready.</Description>
+    <PackageTags>$(PackageTags);kafka;apache-kafka;consumer;dependency-injection;hosted-service;worker-service;aspnetcore;json;configuration</PackageTags>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../EventGuard.Hosting/EventGuard.Hosting.csproj" />
     <ProjectReference Include="../EventGuard.Kafka/EventGuard.Kafka.csproj" />

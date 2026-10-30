@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFrameworks>net8.0;net10.0</TargetFrameworks><PackageReadmeFile>README.md</PackageReadmeFile></PropertyGroup>
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Microsoft SQL Server monitoring readers for EventGuard. Read bounded pages of work, outbox messages, backlog, ingress state and audit history for operations dashboards and support tools. Operates independently of processing workers. Experimental preview; not production ready.</Description>
+    <PackageTags>$(PackageTags);sqlserver;mssql;sql-client;monitoring;observability;operations;outbox;backlog;audit;pagination</PackageTags>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../EventGuard.Operations/EventGuard.Operations.csproj" />
     <PackageReference Include="Microsoft.Data.SqlClient" />

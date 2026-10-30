@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>RabbitMQ transport adapter for EventGuard. Provides durable consumer ingress and bounded event publication for transactional outbox dispatch, using mandatory routing and publisher confirms with explicit uncertain delivery outcomes. Experimental preview; not production ready.</Description>
+    <PackageTags>$(PackageTags);rabbitmq;amqp;consumer;producer;pubsub;outbox;transactional-outbox;publisher-confirms;message-broker</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="/" />

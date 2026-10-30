@@ -1,6 +1,6 @@
 # EventGuard
 
-[EventGuard logo](https://raw.githubusercontent.com/yarasaa/EventGuard/main/src/EventGuard.Dashboard/wwwroot/eventguard.png)
+![EventGuard logo](https://raw.githubusercontent.com/yarasaa/EventGuard/main/src/EventGuard.Dashboard/wwwroot/eventguard.png)
 
 Reliable event processing for **.NET 8 and .NET 10**, with PostgreSQL or SQL Server,
 Kafka or RabbitMQ, and an optional operations dashboard.
@@ -16,10 +16,10 @@ provider, business fields, batch size and deployment platform do not define the 
 See the [general-purpose design requirements](#general-purpose-design-requirements) for
 the development scope and performance acceptance rules. These requirements include open work.
 
-**Status:** experimental `0.1.0-dev.31` release candidate; publication pending.
+**Status:** experimental `0.1.0-dev.31`, published on nuget.org.
 The name, API and schema are provisional. Examples and templates target dev.31.
-Until its NuGet publication is verified, build this candidate from source using the local feed below.
-The last verified published preview is `0.1.0-dev.30`.
+All 16 published packages have passed a clean, nuget.org-only installation and execution
+check on .NET 8 and .NET 10. Install the exact preview version below or build from source.
 See the [development acceptance criteria](#development-acceptance-criteria) for remaining work.
 The optional modules add
 typed jobs, consistent source snapshots, batches, external-service result handling and durable
@@ -323,11 +323,11 @@ should retain their ordinary immutable package lock files.
 
 ## Use the packages in your application
 
-After dev.31 is published and verified, install the packages directly from nuget.org;
-cloning or building this repository is then unnecessary. Until then, build the candidate
-and enable the local feed described below. Keep all EventGuard packages on the same exact
-preview version. If your application has a `NuGet.Config`, preserve its existing feeds
-and enable nuget.org for upstream dependencies:
+Install the packages directly from nuget.org; cloning or building this repository is
+unnecessary. Keep all EventGuard packages on the same exact preview version. In Visual
+Studio, enable **Include prerelease** to find this preview, or specify the exact version
+in the commands below. If your application has a `NuGet.Config`, preserve its existing
+feeds and enable nuget.org for upstream dependencies:
 
 ```xml
 <configuration>
@@ -374,11 +374,8 @@ NuGet package. All packages target modern .NET 8/10, not .NET Framework 4.x.
 
 ## Hosted worker quick start
 
-**dev.31 candidate:** this template uses the configuration API described below and
-requires dev.31 packages. Until publication is verified, build them from this checkout. For a
-NuGet-only installation of published `0.1.0-dev.30`, use the
-[published template revision](https://github.com/yarasaa/EventGuard/tree/0434e0ff7143f462b5f7a590a7a60e4fdfc37433/templates/EventGuard.Worker)
-until dev.31 is published.
+This template uses the configuration API described below and targets the published
+`0.1.0-dev.31` packages.
 
 This is the recommended starting point for a Worker Service or ASP.NET Core application.
 The [worker template](https://github.com/yarasaa/EventGuard/tree/main/templates/EventGuard.Worker) separates contracts, handlers,
@@ -387,7 +384,8 @@ supports PostgreSQL and SQL Server. The default is a PostgreSQL product projecti
 replace that business model/handler with your own.
 
 The template is distributed in the source repository. Clone it, then run these commands
-with `dotnet` on your PATH; use the local candidate feed until dev.31 is published. Create the application **outside the EventGuard checkout** so it does not
+with `dotnet` on your PATH. Building the libraries is unnecessary when using the published
+packages. Create the application **outside the EventGuard checkout** so it does not
 inherit this repository's central build settings:
 
 ```bash
@@ -2801,10 +2799,10 @@ brokerless use. SQL Server and PostgreSQL are separate performance qualification
 | Remote batches with per-item results | Implemented in dev.30 | 250 items in calls of 100/100/50; reordered, missing, duplicate and invalid results; whole reply loss; cancellation; failed status persistence. Native PostgreSQL/SQL Server contracts and package-only composition checks cover .NET 8/10 with a synthetic provider. |
 | Easy service integration | Implemented in dev.30 | One `AddExternalBatchService` registration; JSON helpers; capability/schema validation before work; cooperative shutdown. Provider client and mapping are application code. |
 | Bulk report lookup and stepped polling | Implemented in dev.30 | Separate reconciliation/observation phases; elapsed-age intervals; durable due times and deadline capping. No resubmission on report timeout. |
-| Shared configuration and named worker profiles | Implemented in dev.31 candidate | JSON/environment settings, startup validation, independent batch/concurrency/timing/phase settings, worker enablement and package-only template checks. Existing protocol and identity constraints remain enforced. |
+| Shared configuration and named worker profiles | Implemented in dev.31 | JSON/environment settings, startup validation, independent batch/concurrency/timing/phase settings, worker enablement and package-only template checks. Existing protocol and identity constraints remain enforced. |
 | Fixed elapsed checkpoints | Open | Durable due times at configured offsets from a defined origin, explicit missed-checkpoint behavior, restart/callback races and terminal deadlines. Stepped intervals do not substitute for this policy. |
 | Provider-directed Retry-After and jitter | Open | Persist per-item retry hints, apply only to legal state transitions, test restart/clock boundaries and mixed partial throttling. |
-| Efficient and bounded batching | Native storage and raw byte/count/time bounds implemented in dev.31 candidate | PostgreSQL arrays/set-based writes; SQL Server TVPs; opt-in native job/action preparation and atomic application projection pages; phase/binding indexes; explicit remote-store fallback; real lost-commit tests; 100/250-item local exchange/timing comparisons. Encoded provider byte limits remain adapter-owned. Sustained large-backlog qualification on both stores is still open. |
+| Efficient and bounded batching | Native storage and raw byte/count/time bounds implemented in dev.31 | PostgreSQL arrays/set-based writes; SQL Server TVPs; opt-in native job/action preparation and atomic application projection pages; phase/binding indexes; explicit remote-store fallback; real lost-commit tests; 100/250-item local exchange/timing comparisons. Encoded provider byte limits remain adapter-owned. Sustained large-backlog qualification on both stores is still open. |
 | Durable provider batch receipts | Open for providers that only reconcile whole batches | Freeze original call membership and provider/client batch ID before invocation; recover a lost whole-call reply by that ID and distribute evidence to item records. Current adapters must reconcile by stable item ID or a saved provider reference. |
 | Call and recipient quotas | Calls and bounded timestamped-permit retention implemented within one store; weighted units open | Empty polling creates no permits; retired IDs cannot regain quota. Distinguish requests from recipients/bytes; separate send/query quotas; validate burst boundaries and shared-account behavior. Separate stores currently do not share a quota. |
 | Dapr integration | Open | Typed ingress/egress registration; durable acceptance before SUCCESS; per-entry outcomes; sidecar restart, redelivery and authentication tests; KEDA deployment example. Dapr bulk API maturity must be checked for the selected platform version. |

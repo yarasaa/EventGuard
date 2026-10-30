@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Contracts and state machines for idempotent event processing in .NET: inbox, transactional outbox, message deduplication, retries, jobs and external service results. Broker- and database-independent abstractions for EventGuard adapters. Experimental preview; not production ready.</Description>
+    <PackageTags>$(PackageTags);idempotency;deduplication;inbox;outbox;transactional-outbox;retry;contracts;abstractions;workflow</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="/" />

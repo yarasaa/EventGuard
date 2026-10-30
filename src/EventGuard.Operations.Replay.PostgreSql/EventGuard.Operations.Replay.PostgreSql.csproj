@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>PostgreSQL replay and recovery commands for EventGuard. Persist idempotent replay requests, execute bulk recovery operations and manage quarantined work or outgoing message repair with audit records. Add to an authorized operations host. Experimental preview; not production ready.</Description>
+    <PackageTags>$(PackageTags);postgresql;postgres;npgsql;replay;recovery;idempotency;quarantine;outbox;audit;batch-processing</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../EventGuard.Operations/EventGuard.Operations.csproj" />

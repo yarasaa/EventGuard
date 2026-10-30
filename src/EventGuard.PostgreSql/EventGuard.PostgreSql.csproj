@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>PostgreSQL storage for EventGuard: durable inbox, message deduplication, transactional outbox, retries and lease recovery for .NET applications. Includes optional jobs, snapshots, bulk external actions and workflow persistence with native batched SQL. Experimental preview; not production ready.</Description>
+    <PackageTags>$(PackageTags);postgresql;postgres;npgsql;idempotency;deduplication;inbox;outbox;transactional-outbox;retry;batch-processing;workflow</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="/" />

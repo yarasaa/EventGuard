@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Apache Kafka transport adapter for EventGuard using Confluent.Kafka. Provides durable consumer ingress and bounded event publication for transactional outbox dispatch, with explicit broker acknowledgement and uncertain delivery outcomes. Experimental preview; not production ready.</Description>
+    <PackageTags>$(PackageTags);kafka;apache-kafka;confluent;consumer;producer;pubsub;outbox;transactional-outbox;message-broker</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="/" />

@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Operations contracts and metadata models for EventGuard monitoring and recovery tools. Query work, outbox state, backlog, worker health and audit history; compose replay and recovery commands with database adapters and your authorized application host. Experimental preview; not production ready.</Description>
+    <PackageTags>$(PackageTags);operations;monitoring;observability;replay;recovery;audit;outbox;backlog;worker-health</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../EventGuard.Core/EventGuard.Core.csproj" />

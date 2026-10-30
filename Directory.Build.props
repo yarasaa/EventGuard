@@ -13,7 +13,8 @@
     <PackageProjectUrl>https://github.com/yarasaa/EventGuard</PackageProjectUrl>
     <RepositoryUrl>https://github.com/yarasaa/EventGuard</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>event-driven;idempotency;outbox;inbox;dotnet;kafka;rabbitmq</PackageTags>
+    <!-- Shared tags only. Each package appends its feature/adapter tags using $(PackageTags). -->
+    <PackageTags>eventguard;dotnet;event-driven;messaging</PackageTags>
     <Description>Configurable event reliability primitives. Experimental; not production ready.</Description>
   </PropertyGroup>
   <ItemGroup>

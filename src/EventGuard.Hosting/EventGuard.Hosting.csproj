@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Dependency injection and Generic Host integration for EventGuard in .NET Worker Services and ASP.NET Core. AddEventGuard registers typed JSON handlers, configurable background workers, startup validation and graceful shutdown. Experimental preview; not production ready.</Description>
+    <PackageTags>$(PackageTags);dependency-injection;hosting;generic-host;hosted-service;background-service;worker-service;aspnetcore;json;configuration</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../EventGuard.Runtime/EventGuard.Runtime.csproj" />

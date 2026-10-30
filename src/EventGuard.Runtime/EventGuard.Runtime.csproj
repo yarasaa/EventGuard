@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>EventGuard runtime workers for .NET: bounded event processing, transactional outbox dispatch, retries, background jobs, bulk external service calls and durable workflow coordination. Compose with storage and optional broker adapters. Experimental preview; not production ready.</Description>
+    <PackageTags>$(PackageTags);idempotency;deduplication;inbox;outbox;transactional-outbox;retry;background-jobs;batch-processing;workflow</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../EventGuard.Core/EventGuard.Core.csproj" />

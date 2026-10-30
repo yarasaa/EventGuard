@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Microsoft SQL Server storage for EventGuard: durable inbox, message deduplication, transactional outbox, retries and lease recovery for .NET applications. Includes optional jobs, snapshots, bulk external actions and workflow persistence with table-valued parameters. Experimental preview; not production ready.</Description>
+    <PackageTags>$(PackageTags);sqlserver;mssql;sql-client;idempotency;deduplication;inbox;outbox;transactional-outbox;retry;batch-processing;tvp</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../EventGuard.Core/EventGuard.Core.csproj" />
