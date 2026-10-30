@@ -100,7 +100,7 @@ def main():
                     case['framework'] = framework
                     report['cases'].append(case)
         report['bulkReadmeExamplesCompiled'] = True
-        report['passed'] = len(report['cases']) == 4 and all(c['allSucceeded'] and c['uniqueEffects'] == 9 and c['Submits'] == 3 and c['projectedStatuses'] == 3 and c['failedStatusWrites'] == 1 and c['preparation']['Selected'] == 205 and c['preparation']['Batches'] == 3 and c['preparation']['Actions'] == c['preparation']['Submits'] == 205 and 3 <= c['preparation']['RemoteCalls'] < 205 and c['preparation']['Workflow'] == 'Completed' and c['preparation']['NativeExternalStorage'] for c in report['cases'])
+        report['passed'] = len(report['cases']) == 4 and all(c['allSucceeded'] and c['uniqueEffects'] == 9 and c['Submits'] == 3 and c['projectedStatuses'] == 3 and c['failedStatusWrites'] == 1 and c['nativeResultProjection'] and c['preparation']['Selected'] == 205 and c['preparation']['Batches'] == 3 and c['preparation']['Actions'] == c['preparation']['Submits'] == 205 and 3 <= c['preparation']['RemoteCalls'] < 205 and c['preparation']['Workflow'] == 'Completed' and c['preparation']['NativeExternalStorage'] for c in report['cases'])
     finally:
         (output / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))

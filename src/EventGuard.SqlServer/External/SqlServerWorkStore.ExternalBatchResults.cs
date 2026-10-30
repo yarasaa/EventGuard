@@ -80,10 +80,28 @@ public sealed partial class SqlServerWorkStore
         }
         await using var command = new SqlCommand { Connection = connection, Transaction = transaction };
         command.Parameters.Add(new SqlParameter("rows", SqlDbType.Structured) { TypeName = _schema + ".external_batch_bindings", Value = table });
+        command.Parameters.AddValue("policy_prefix", "policy:" + _schema + ":");
         command.CommandText = $"""
+            -- Existing bindings need shared validation only. Lock initialization only for missing scopes,
+            -- using the same per-scope resource as ordinary acceptance; never upgrade existing shared locks.
+            DECLARE @scope nvarchar(64), @resource nvarchar(255), @lock_result int;
+            DECLARE missing CURSOR LOCAL FAST_FORWARD FOR
+                SELECT x.scope_id FROM @rows x
+                WHERE NOT EXISTS(SELECT 1 FROM {_schema}.policy_bindings p WITH(FORCESEEK) WHERE p.scope_id=x.scope_id)
+                ORDER BY x.scope_id;
+            OPEN missing;
+            FETCH NEXT FROM missing INTO @scope;
+            WHILE @@FETCH_STATUS=0
+            BEGIN
+                SET @resource=@policy_prefix+@scope;
+                EXEC @lock_result=sys.sp_getapplock @Resource=@resource,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=15000;
+                IF @lock_result<0 THROW 51002,'Policy initialization lock unavailable.',1;
+                FETCH NEXT FROM missing INTO @scope;
+            END;
+            CLOSE missing; DEALLOCATE missing;
             INSERT INTO {_schema}.policy_bindings(scope_id,tenant,consumer,source,event_type,key_version,fingerprint_version)
             SELECT scope_id,tenant,consumer,source,event_type,key_version,fingerprint_version FROM @rows x
-            WHERE NOT EXISTS(SELECT 1 FROM {_schema}.policy_bindings p WITH(UPDLOCK,HOLDLOCK,FORCESEEK) WHERE p.scope_id=x.scope_id);
+            WHERE NOT EXISTS(SELECT 1 FROM {_schema}.policy_bindings p WITH(FORCESEEK) WHERE p.scope_id=x.scope_id);
             SELECT p.scope_id,p.tenant,p.consumer,p.source,p.event_type,p.key_version,p.fingerprint_version
             FROM @rows x JOIN {_schema}.policy_bindings p WITH(HOLDLOCK,FORCESEEK) ON p.scope_id=x.scope_id
             ORDER BY p.scope_id OPTION(FORCE ORDER,LOOP JOIN);

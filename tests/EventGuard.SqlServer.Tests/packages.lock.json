@@ -248,20 +248,20 @@
       "eventguard.rabbitmq": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "RabbitMQ.Client": "[7.2.2, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[9.0.21, )"
         }
@@ -269,7 +269,7 @@
       "eventguard.store.conformance": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "xunit": "[2.9.3, )"
         }
       },
@@ -559,20 +559,20 @@
       "eventguard.rabbitmq": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "RabbitMQ.Client": "[7.2.2, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[8.0.2, )"
         }
@@ -580,7 +580,7 @@
       "eventguard.store.conformance": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "xunit": "[2.9.3, )"
         }
       },

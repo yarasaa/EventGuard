@@ -34,6 +34,16 @@ public sealed partial class PostgreSqlWorkStore : ITransactionalJobStore<Postgre
                 await migrate.ExecuteNonQueryAsync(cancellationToken);
             }
         }
+        await using (var current = new NpgsqlCommand($"SELECT version FROM {_schema}.job_schema_version WHERE singleton", connection, transaction))
+        {
+            if (Convert.ToInt32(await current.ExecuteScalarAsync(cancellationToken)) == 2)
+            {
+                await using var stream = typeof(PostgreSqlWorkStore).Assembly.GetManifestResourceStream("EventGuard.PostgreSql.Jobs.Migrations.003_native_items.sql")!;
+                using var reader = new StreamReader(stream);
+                await using var migrate = new NpgsqlCommand((await reader.ReadToEndAsync(cancellationToken)).Replace("__SCHEMA__", _schema, StringComparison.Ordinal), connection, transaction);
+                await migrate.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
         await CheckJobSchemaAsync(connection, transaction, cancellationToken);
         await PostgreSqlProtocol.CommitAsync(transaction, Guid.NewGuid(), cancellationToken);
     }
@@ -41,7 +51,7 @@ public sealed partial class PostgreSqlWorkStore : ITransactionalJobStore<Postgre
     private async Task CheckJobSchemaAsync(NpgsqlConnection connection, NpgsqlTransaction? transaction, CancellationToken ct)
     {
         await using var command = new NpgsqlCommand($"SELECT version FROM {_schema}.job_schema_version WHERE singleton", connection, transaction);
-        if (await command.ExecuteScalarAsync(ct) is not int version || version != 2)
+        if (await command.ExecuteScalarAsync(ct) is not int version || version != 3)
             throw new InvalidOperationException("Unsupported Jobs schema version. Run the explicit Jobs migration.");
     }
 

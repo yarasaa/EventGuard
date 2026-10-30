@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using EventGuard.LoadTests;
 
+if (args.Length > 0 && args[0] == "--external-pipeline") return await ExternalPipelineProbe.RunAsync(args[1..]);
 if (args.Length > 0 && args[0] == "--claim-plans") return await ClaimPlanProbe.RunAsync(args[1..]);
 if (args.Length > 0 && args[0] == "--sparse-claim-plans") return await ClaimPlanProbe.RunAsync(args[1..]);
 if (args.Length > 0 && args[0] == "--claim-due-plans") return await ClaimDuePlanProbe.RunAsync(args[1..]);

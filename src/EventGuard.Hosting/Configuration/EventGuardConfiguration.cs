@@ -43,7 +43,9 @@ public sealed class EventGuardConfiguration
         {
             StartupTimeout = Read(name, "Worker", "StartupTimeout", defaults.StartupTimeout, Duration),
             SettlementTimeout = Read(name, "Worker", "SettlementTimeout", defaults.SettlementTimeout, Duration),
-            ExternalCallTimeout = Read<TimeSpan?>(name, "Worker", "ExternalCallTimeout", defaults.ExternalCallTimeout, s => Duration(s))
+            ExternalCallTimeout = Read<TimeSpan?>(name, "Worker", "ExternalCallTimeout", defaults.ExternalCallTimeout, s => Duration(s)),
+            ExternalPermitRetention = Read<TimeSpan?>(name, "Worker", "ExternalPermitRetention", defaults.ExternalPermitRetention, s => string.Equals(s, "disabled", StringComparison.OrdinalIgnoreCase) ? null : Duration(s)),
+            ExternalPermitCleanupInterval = Read(name, "Worker", "ExternalPermitCleanupInterval", defaults.ExternalPermitCleanupInterval, Duration)
         });
     }
 
@@ -68,6 +70,16 @@ public sealed class EventGuardConfiguration
             MaximumPayloadBytes = Read(name, "Batch", "MaximumPayloadBytes", defaults.MaximumPayloadBytes, Integer),
             RequireNativeStorage = Read(name, "Batch", "RequireNativeStorage", defaults.RequireNativeStorage, bool.Parse)
         });
+    }
+
+    public ExternalResultBatchOptions GetResultBatchOptions(string name, ExternalResultBatchOptions? defaults = null)
+    {
+        defaults ??= new();
+        return Guard(name, "ResultBatch", () => new ExternalResultBatchOptions(
+            Read(name, "ResultBatch", "MaximumItems", defaults.MaximumItems, Integer),
+            Read(name, "ResultBatch", "MaximumBytes", defaults.MaximumBytes, Integer),
+            Read(name, "ResultBatch", "ExecutionTimeout", defaults.ExecutionTimeout, Duration),
+            Read(name, "ResultBatch", "FailureRecordingTimeout", defaults.FailureRecordingTimeout, Duration)));
     }
 
     public ExternalActionPolicy GetExternalPolicy(string name, ExternalActionPolicy? defaults = null)

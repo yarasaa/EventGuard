@@ -10,6 +10,20 @@ public sealed class WorkPumpOptions
     private TimeSpan _startupTimeout = TimeSpan.FromSeconds(5);
     private TimeSpan _settlementTimeout = TimeSpan.FromSeconds(10);
     private TimeSpan? _externalCallTimeout;
+    private TimeSpan? _externalPermitRetention = TimeSpan.FromDays(1);
+    private TimeSpan _externalPermitCleanupInterval = TimeSpan.FromMinutes(5);
+    public TimeSpan? ExternalPermitRetention
+    {
+        get => _externalPermitRetention;
+        init => _externalPermitRetention = value is null || value >= TimeSpan.FromHours(1) && value <= TimeSpan.FromDays(365)
+            ? value : throw new ArgumentOutOfRangeException(nameof(ExternalPermitRetention));
+    }
+    public TimeSpan ExternalPermitCleanupInterval
+    {
+        get => _externalPermitCleanupInterval;
+        init => _externalPermitCleanupInterval = value >= TimeSpan.FromSeconds(1) && value <= TimeSpan.FromDays(1)
+            ? value : throw new ArgumentOutOfRangeException(nameof(ExternalPermitCleanupInterval));
+    }
     public TimeSpan StartupTimeout { get => _startupTimeout; init => _startupTimeout = Timeout(value, nameof(StartupTimeout)); }
     public TimeSpan SettlementTimeout { get => _settlementTimeout; init => _settlementTimeout = Timeout(value, nameof(SettlementTimeout)); }
     public TimeSpan? ExternalCallTimeout { get => _externalCallTimeout; init => _externalCallTimeout = value is { } duration ? Timeout(duration, nameof(ExternalCallTimeout)) : null; }

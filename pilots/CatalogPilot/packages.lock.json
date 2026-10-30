@@ -4,47 +4,47 @@
     "net10.0": {
       "EventGuard.Core": {
         "type": "Direct",
-        "requested": "[0.1.0-dev.30, )",
-        "resolved": "0.1.0-dev.30",
-        "contentHash": "xFx/jE+PDw/fTJT9CvcjYvWVlJzTf9NxhPq1YYgaLioTwKQ746zlGTO2NQosxwfxAKs7A91y/tDKCEgW1Z4pDQ=="
+        "requested": "[0.1.0-dev.31, )",
+        "resolved": "0.1.0-dev.31",
+        "contentHash": "oZ31vSTd3Waq1AT0LpjNjBoBJdKuM+RKXdoAUpSx5KuvVFEQiL6qpD+UNPxTvbjIi0YR6/o3kd+ggUWbYSB6eg=="
       },
       "EventGuard.Operations.PostgreSql": {
         "type": "Direct",
-        "requested": "[0.1.0-dev.30, )",
-        "resolved": "0.1.0-dev.30",
-        "contentHash": "yBPAheDsm4YwVSWJcEiIEwWWbkEyVunNcIR2d3V7vaulkt2e/z0REQTu3mpcwoBAbPt9+oiw63vHL/Qhdb7hEw==",
+        "requested": "[0.1.0-dev.31, )",
+        "resolved": "0.1.0-dev.31",
+        "contentHash": "H/WHDSNvFYrcRkvUO8dZq7wm5F4aHc1WOgxiy1pnnWQT+vU/4m9zYTeHwOsdXjI44VeOM7ciNoYrCEpoJBzrLw==",
         "dependencies": {
-          "EventGuard.Operations": "0.1.0-dev.30",
+          "EventGuard.Operations": "0.1.0-dev.31",
           "Npgsql": "10.0.3"
         }
       },
       "EventGuard.PostgreSql": {
         "type": "Direct",
-        "requested": "[0.1.0-dev.30, )",
-        "resolved": "0.1.0-dev.30",
-        "contentHash": "65T2R3uqlR2DitFQi2Er2VVP1OPA1RiR7ZPy5r6kghmwoShVfkj54H4rOBJ1KMjNuYEb9VWPDA1ekA2TpBewXg==",
+        "requested": "[0.1.0-dev.31, )",
+        "resolved": "0.1.0-dev.31",
+        "contentHash": "qWDzmeSUp4GiWKIqQgXr/CsxHGNV6Znq7+C68c1pDQ8N4o100rsIvnnygnttaYPeq5Yo5SuCq0L56b5fNOHZKg==",
         "dependencies": {
-          "EventGuard.Core": "0.1.0-dev.30",
+          "EventGuard.Core": "0.1.0-dev.31",
           "Npgsql": "10.0.3"
         }
       },
       "EventGuard.RabbitMq": {
         "type": "Direct",
-        "requested": "[0.1.0-dev.30, )",
-        "resolved": "0.1.0-dev.30",
-        "contentHash": "3m9p+avxPA/P0rqXbn0iHMtL8mF7Uf2ixoLAgbJu7TazHO26zn7HAk05dG/wjVSyD6wUf+Y522o1pKUmF2mIsA==",
+        "requested": "[0.1.0-dev.31, )",
+        "resolved": "0.1.0-dev.31",
+        "contentHash": "/Q4TfF1I4/obSUPal5T783I7u49B5kPWjoy6u/dX7YW9srqV82UfZ92cg+3g6IZfjyklwRSmbrSJuRAT0c+bvw==",
         "dependencies": {
-          "EventGuard.Core": "0.1.0-dev.30",
+          "EventGuard.Core": "0.1.0-dev.31",
           "RabbitMQ.Client": "7.2.2"
         }
       },
       "EventGuard.Runtime": {
         "type": "Direct",
-        "requested": "[0.1.0-dev.30, )",
-        "resolved": "0.1.0-dev.30",
-        "contentHash": "tcxCJI8xPEaFcEkO3VocgAuI0J8bm/LQeCwIGZNXnsDbCiSw9a5ta6QHYmkzH8SBI2KpAcEplJRaM2O+d/DGHQ==",
+        "requested": "[0.1.0-dev.31, )",
+        "resolved": "0.1.0-dev.31",
+        "contentHash": "MwIc6X2YsR16A9za+lDAKanFdO9EJVzH2LCLMDAedSx+d0V6tvFRVWj1p4aVQlu2Z2+X2JtDOtmEROVNKP56+w==",
         "dependencies": {
-          "EventGuard.Core": "0.1.0-dev.30"
+          "EventGuard.Core": "0.1.0-dev.31"
         }
       },
       "Npgsql": {
@@ -61,57 +61,57 @@
       },
       "EventGuard.Operations": {
         "type": "Transitive",
-        "resolved": "0.1.0-dev.30",
-        "contentHash": "1qzyYJvs/4MW+bJv3AiWJAz3sx76BnDrCsqmwwHqE3Xwwnc+XoiJP4lWDBxSncLfXheWHJb8SnVI6XWpIFTcpQ==",
+        "resolved": "0.1.0-dev.31",
+        "contentHash": "D8E/V4kVuM/G6c1Kzb9+iGtD4YQJ6pdBKjdfQuIhOv7q4wyw5AUoYO0Lh85WGorl9dSOsp9tOJV18rt+BGYLxg==",
         "dependencies": {
-          "EventGuard.Core": "0.1.0-dev.30"
+          "EventGuard.Core": "0.1.0-dev.31"
         }
       }
     },
     "net8.0": {
       "EventGuard.Core": {
         "type": "Direct",
-        "requested": "[0.1.0-dev.30, )",
-        "resolved": "0.1.0-dev.30",
-        "contentHash": "xFx/jE+PDw/fTJT9CvcjYvWVlJzTf9NxhPq1YYgaLioTwKQ746zlGTO2NQosxwfxAKs7A91y/tDKCEgW1Z4pDQ=="
+        "requested": "[0.1.0-dev.31, )",
+        "resolved": "0.1.0-dev.31",
+        "contentHash": "oZ31vSTd3Waq1AT0LpjNjBoBJdKuM+RKXdoAUpSx5KuvVFEQiL6qpD+UNPxTvbjIi0YR6/o3kd+ggUWbYSB6eg=="
       },
       "EventGuard.Operations.PostgreSql": {
         "type": "Direct",
-        "requested": "[0.1.0-dev.30, )",
-        "resolved": "0.1.0-dev.30",
-        "contentHash": "yBPAheDsm4YwVSWJcEiIEwWWbkEyVunNcIR2d3V7vaulkt2e/z0REQTu3mpcwoBAbPt9+oiw63vHL/Qhdb7hEw==",
+        "requested": "[0.1.0-dev.31, )",
+        "resolved": "0.1.0-dev.31",
+        "contentHash": "H/WHDSNvFYrcRkvUO8dZq7wm5F4aHc1WOgxiy1pnnWQT+vU/4m9zYTeHwOsdXjI44VeOM7ciNoYrCEpoJBzrLw==",
         "dependencies": {
-          "EventGuard.Operations": "0.1.0-dev.30",
+          "EventGuard.Operations": "0.1.0-dev.31",
           "Npgsql": "8.0.9"
         }
       },
       "EventGuard.PostgreSql": {
         "type": "Direct",
-        "requested": "[0.1.0-dev.30, )",
-        "resolved": "0.1.0-dev.30",
-        "contentHash": "65T2R3uqlR2DitFQi2Er2VVP1OPA1RiR7ZPy5r6kghmwoShVfkj54H4rOBJ1KMjNuYEb9VWPDA1ekA2TpBewXg==",
+        "requested": "[0.1.0-dev.31, )",
+        "resolved": "0.1.0-dev.31",
+        "contentHash": "qWDzmeSUp4GiWKIqQgXr/CsxHGNV6Znq7+C68c1pDQ8N4o100rsIvnnygnttaYPeq5Yo5SuCq0L56b5fNOHZKg==",
         "dependencies": {
-          "EventGuard.Core": "0.1.0-dev.30",
+          "EventGuard.Core": "0.1.0-dev.31",
           "Npgsql": "8.0.9"
         }
       },
       "EventGuard.RabbitMq": {
         "type": "Direct",
-        "requested": "[0.1.0-dev.30, )",
-        "resolved": "0.1.0-dev.30",
-        "contentHash": "3m9p+avxPA/P0rqXbn0iHMtL8mF7Uf2ixoLAgbJu7TazHO26zn7HAk05dG/wjVSyD6wUf+Y522o1pKUmF2mIsA==",
+        "requested": "[0.1.0-dev.31, )",
+        "resolved": "0.1.0-dev.31",
+        "contentHash": "/Q4TfF1I4/obSUPal5T783I7u49B5kPWjoy6u/dX7YW9srqV82UfZ92cg+3g6IZfjyklwRSmbrSJuRAT0c+bvw==",
         "dependencies": {
-          "EventGuard.Core": "0.1.0-dev.30",
+          "EventGuard.Core": "0.1.0-dev.31",
           "RabbitMQ.Client": "7.2.2"
         }
       },
       "EventGuard.Runtime": {
         "type": "Direct",
-        "requested": "[0.1.0-dev.30, )",
-        "resolved": "0.1.0-dev.30",
-        "contentHash": "tcxCJI8xPEaFcEkO3VocgAuI0J8bm/LQeCwIGZNXnsDbCiSw9a5ta6QHYmkzH8SBI2KpAcEplJRaM2O+d/DGHQ==",
+        "requested": "[0.1.0-dev.31, )",
+        "resolved": "0.1.0-dev.31",
+        "contentHash": "MwIc6X2YsR16A9za+lDAKanFdO9EJVzH2LCLMDAedSx+d0V6tvFRVWj1p4aVQlu2Z2+X2JtDOtmEROVNKP56+w==",
         "dependencies": {
-          "EventGuard.Core": "0.1.0-dev.30"
+          "EventGuard.Core": "0.1.0-dev.31"
         }
       },
       "Npgsql": {
@@ -128,10 +128,10 @@
       },
       "EventGuard.Operations": {
         "type": "Transitive",
-        "resolved": "0.1.0-dev.30",
-        "contentHash": "1qzyYJvs/4MW+bJv3AiWJAz3sx76BnDrCsqmwwHqE3Xwwnc+XoiJP4lWDBxSncLfXheWHJb8SnVI6XWpIFTcpQ==",
+        "resolved": "0.1.0-dev.31",
+        "contentHash": "D8E/V4kVuM/G6c1Kzb9+iGtD4YQJ6pdBKjdfQuIhOv7q4wyw5AUoYO0Lh85WGorl9dSOsp9tOJV18rt+BGYLxg==",
         "dependencies": {
-          "EventGuard.Core": "0.1.0-dev.30"
+          "EventGuard.Core": "0.1.0-dev.31"
         }
       }
     }

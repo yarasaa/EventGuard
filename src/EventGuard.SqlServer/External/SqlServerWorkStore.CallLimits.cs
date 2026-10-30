@@ -5,14 +5,14 @@ namespace EventGuard.SqlServer;
 
 public sealed partial class SqlServerWorkStore : IExternalCallLimiter
 {
-    private sealed record LimitRow(int Used, int Failures, DateTimeOffset Started, DateTimeOffset? OpenUntil, Guid? Probe);
+    private sealed record LimitRow(int Used, int Failures, DateTimeOffset Started, DateTimeOffset? OpenUntil, Guid? Probe, DateTimeOffset RetiredBefore);
     private async Task<LimitRow?> ReadLimitAsync(SqlConnection c, SqlTransaction? t, ExternalCallLimit limit, CancellationToken ct)
     {
-        await using var command = StoreCommand(c, t, $"SELECT fingerprint,used,failures,window_started_at,open_until,probe FROM {_schema}.external_limits WHERE id=@id", ("id", limit.Id));
+        await using var command = StoreCommand(c, t, $"SELECT fingerprint,used,failures,window_started_at,open_until,probe,retired_before FROM {_schema}.external_limits WHERE id=@id", ("id", limit.Id));
         await using var reader = await command.ExecuteReaderCheckedAsync(ct);
         if (!await reader.ReadCheckedAsync(ct)) return null;
         if (reader.GetString(0) != limit.Fingerprint) throw new InvalidOperationException("Shared endpoint limit configuration differs between workers.");
-        return new(reader.GetInt32(1), reader.GetInt32(2), reader.GetFieldValue<DateTimeOffset>(3), reader.IsDBNull(4) ? null : reader.GetFieldValue<DateTimeOffset>(4), reader.IsDBNull(5) ? null : reader.GetGuid(5));
+        return new(reader.GetInt32(1), reader.GetInt32(2), reader.GetFieldValue<DateTimeOffset>(3), reader.IsDBNull(4) ? null : reader.GetFieldValue<DateTimeOffset>(4), reader.IsDBNull(5) ? null : reader.GetGuid(5), reader.GetFieldValue<DateTimeOffset>(6));
     }
     private async Task SaveLimitAsync(SqlConnection c, SqlTransaction t, ExternalCallLimit limit, LimitRow row, CancellationToken ct)
     {
@@ -33,21 +33,25 @@ public sealed partial class SqlServerWorkStore : IExternalCallLimiter
         {
             await using var insert = StoreCommand(c, t, $"INSERT INTO {_schema}.external_limits(id,fingerprint,window_started_at,used,failures) VALUES(@id,@fingerprint,@now,0,0)",
                 ("id", limit.Id), ("fingerprint", limit.Fingerprint), ("now", now));
-            await insert.ExecuteNonQueryCheckedAsync(cancellationToken); row = new(0, 0, now, null, null);
+            await insert.ExecuteNonQueryCheckedAsync(cancellationToken); row = new(0, 0, now, null, null, DateTimeOffset.UnixEpoch);
         }
         await using (var prior = StoreCommand(c, t, $"SELECT expires_at,outcome FROM {_schema}.external_permits WHERE limit_id=@limit AND id=@id", ("limit", limit.Id), ("id", requestId)))
         {
             await using var reader = await prior.ExecuteReaderCheckedAsync(cancellationToken);
             if (await reader.ReadCheckedAsync(cancellationToken)) return reader.IsDBNull(1) && reader.GetFieldValue<DateTimeOffset>(0) > now ? new(limit, requestId, reader.GetFieldValue<DateTimeOffset>(0)) : null;
         }
+        var requestTime = ExternalCallRequestIds.Timestamp(requestId);
+        if (requestTime > now + TimeSpan.FromMinutes(5)) throw new ArgumentException("Permit request timestamp is in the future.", nameof(requestId));
+        if (requestTime <= row.RetiredBefore) return null;
         if (row.OpenUntil > now) return null;
         if (row.Started + limit.Window <= now) row = row with { Used = 0, Started = now };
         var active = await ActivePermitsAsync(c, t, limit.Id, now, cancellationToken);
         if (row.Used >= limit.MaximumCalls || active >= limit.MaximumConcurrency || row.OpenUntil.HasValue && active > 0) return null;
         row = row with { Used = checked(row.Used + 1), Probe = row.OpenUntil.HasValue ? requestId : null };
         await SaveLimitAsync(c, t, limit, row, cancellationToken);
-        await using var permit = StoreCommand(c, t, $"INSERT INTO {_schema}.external_permits(limit_id,id,window_started_at,expires_at) VALUES(@limit,@id,@window,@expires)",
+        await using var permit = StoreCommand(c, t, $"INSERT INTO {_schema}.external_permits(limit_id,id,window_started_at,expires_at,request_time) VALUES(@limit,@id,@window,@expires,@request_time)",
             ("limit", limit.Id), ("id", requestId), ("window", row.Started), ("expires", now + duration));
+        SqlServerProtocol.Optional(permit, "request_time", SqlDbType.DateTimeOffset, requestTime);
         await permit.ExecuteNonQueryCheckedAsync(cancellationToken); await SqlServerProtocol.CommitAsync(t, requestId, cancellationToken);
         return new(limit, requestId, now + duration);
     }
@@ -68,7 +72,11 @@ public sealed partial class SqlServerWorkStore : IExternalCallLimiter
         await using (var find = StoreCommand(c, t, $"SELECT window_started_at,expires_at,outcome FROM {_schema}.external_permits WHERE limit_id=@limit AND id=@id", ("limit", limit.Id), ("id", permit.Id)))
         {
             await using var reader = await find.ExecuteReaderCheckedAsync(cancellationToken);
-            if (!await reader.ReadCheckedAsync(cancellationToken)) throw new InvalidOperationException("Call permit not found.");
+            if (!await reader.ReadCheckedAsync(cancellationToken))
+            {
+                if (ExternalCallRequestIds.Timestamp(permit.Id) <= row.RetiredBefore) throw new ExternalCallPermitRetiredException(permit.Id);
+                throw new InvalidOperationException("Call permit not found.");
+            }
             if (!reader.IsDBNull(2))
             { if (reader.GetInt32(2) != (int)outcome) throw new InvalidOperationException("Call permit already has a different outcome."); return; }
             started = reader.GetFieldValue<DateTimeOffset>(0); expires = reader.GetFieldValue<DateTimeOffset>(1);

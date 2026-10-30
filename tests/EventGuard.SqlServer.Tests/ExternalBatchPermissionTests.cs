@@ -39,7 +39,21 @@ public sealed class ExternalBatchPermissionTests(DatabaseFixture db) : IClassFix
             Assert.Single(claims);
             Assert.True(Assert.Single(await worker.SettleActionsAsync(new(claims.Select(c =>
                 new ExternalBatchSettlementItem(c, new(ExternalResultKind.Accepted, "accepted"))), new()))).Recorded);
-            Assert.NotNull(await db.Claim(target.WorkScope));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => worker.ValidateExternalResultBatchAsync());
+            foreach (var type in new[] { "external_result_ids", "external_result_versions", "external_result_changes" })
+            {
+                command.CommandText = $"GRANT EXECUTE,REFERENCES ON TYPE::{db.Schema}.{type} TO [{user}]";
+                await command.ExecuteNonQueryAsync();
+            }
+            await worker.ValidateExternalResultBatchAsync();
+            var applied = await worker.ExecuteResultBatchAsync(target,new(),async (updates,session,ct) =>
+            {
+                await using var write = session.CreateCommand($"INSERT INTO {db.Schema}.business_effects VALUES(@id,'applied')");
+                write.Parameters.AddWithValue("id",Assert.Single(updates).Action.Id);
+                await write.ExecuteNonQueryAsync(ct);
+            },new());
+            Assert.Equal(1,applied.Applied);Assert.Equal(1,await db.EffectCount(action.Id));
+            Assert.Null(await db.Claim(target.WorkScope));
         }
         finally
         {

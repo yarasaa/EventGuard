@@ -1,0 +1,2 @@
+EXEC(N'CREATE TYPE __SCHEMA__.external_action_inputs AS TABLE(id uniqueidentifier NOT NULL PRIMARY KEY,binding_name nvarchar(1024),binding_version nvarchar(1024),payload varbinary(max),observation_timeout bigint,fingerprint nvarchar(64) COLLATE Latin1_General_100_BIN2,result_handler nvarchar(1024),result_handler_version nvarchar(1024))');
+UPDATE __SCHEMA__.external_schema_version SET version=8 WHERE singleton=1;

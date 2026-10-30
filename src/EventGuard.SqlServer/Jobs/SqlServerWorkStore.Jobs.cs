@@ -34,6 +34,16 @@ public sealed partial class SqlServerWorkStore : ITransactionalJobStore<SqlServe
                 await migrate.ExecuteNonQueryCheckedAsync(cancellationToken);
             }
         }
+        await using (var current = new SqlCommand($"SELECT version FROM {_schema}.job_schema_version WHERE singleton=1", connection, transaction))
+        {
+            if (Convert.ToInt32(await current.ExecuteScalarCheckedAsync(cancellationToken)) == 2)
+            {
+                await using var stream = typeof(SqlServerWorkStore).Assembly.GetManifestResourceStream("EventGuard.SqlServer.Jobs.Migrations.003_native_items.sql")!;
+                using var reader = new StreamReader(stream);
+                await using var migrate = new SqlCommand((await reader.ReadToEndAsync(cancellationToken)).Replace("__SCHEMA__", _schema, StringComparison.Ordinal), connection, transaction);
+                await migrate.ExecuteNonQueryCheckedAsync(cancellationToken);
+            }
+        }
         await CheckJobSchemaAsync(connection, transaction, cancellationToken);
         await SqlServerProtocol.CommitAsync(transaction, Guid.NewGuid(), cancellationToken);
     }
@@ -41,7 +51,7 @@ public sealed partial class SqlServerWorkStore : ITransactionalJobStore<SqlServe
     private async Task CheckJobSchemaAsync(SqlConnection connection, SqlTransaction? transaction, CancellationToken ct)
     {
         await using var command = new SqlCommand($"SELECT version FROM {_schema}.job_schema_version WHERE singleton=1", connection, transaction);
-        if (await command.ExecuteScalarCheckedAsync(ct) is not int version || version != 2)
+        if (await command.ExecuteScalarCheckedAsync(ct) is not int version || version != 3)
             throw new InvalidOperationException("Unsupported Jobs schema version. Run the explicit Jobs migration.");
     }
 

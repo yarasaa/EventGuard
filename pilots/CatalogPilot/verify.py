@@ -34,7 +34,7 @@ def run(framework):
                PILOT_SCHEMA=schema, PILOT_PORT=str(port), PILOT_TEST_CONTROLS='1')
     dll = APP / f'bin/Release/{framework}/CatalogPilot.dll'
     processes, handles, checks = [], [], []
-    result = {'framework':framework, 'schema':schema, 'eventguardVersion':'0.1.0-dev.30',
+    result = {'framework':framework, 'schema':schema, 'eventguardVersion':'0.1.0-dev.31',
               'database':'real local PostgreSQL 18.6', 'broker':'real local RabbitMQ 4.3.5', 'checks':checks}
     begin = time.monotonic()
     def record(name, evidence):

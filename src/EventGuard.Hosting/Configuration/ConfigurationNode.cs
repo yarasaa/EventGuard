@@ -21,8 +21,9 @@ internal sealed record ConfigurationNode(string Key, string Path, string? Value,
     }
     internal void Profile()
     {
-        Keys("Enabled", "Worker", "Retry", "Batch", "External", "CallLimit", "Phases", "Polling");
-        Child("Worker")?.Keys("MaximumConcurrency", "LeaseDuration", "IdleDelay", "FaultDelay", "StartupTimeout", "SettlementTimeout", "ExternalCallTimeout");
+        Keys("Enabled", "Worker", "Retry", "Batch", "External", "CallLimit", "Phases", "Polling", "ResultBatch");
+        Child("Worker")?.Keys("MaximumConcurrency", "LeaseDuration", "IdleDelay", "FaultDelay", "StartupTimeout", "SettlementTimeout", "ExternalCallTimeout", "ExternalPermitRetention", "ExternalPermitCleanupInterval");
+        Child("ResultBatch")?.Keys("MaximumItems", "MaximumBytes", "ExecutionTimeout", "FailureRecordingTimeout");
         Child("Retry")?.Keys("MaximumAttempts", "InitialDelay", "MaximumDelay", "JitterRatio");
         Child("Batch")?.Keys("MaximumBatchSize", "CollectionWindow", "MaximumPayloadBytes", "RequireNativeStorage");
         Child("External")?.Keys("MaximumSubmissionAttempts", "RetryDelay", "ObservationInterval", "ObservationSchedule");
@@ -43,7 +44,7 @@ internal sealed record ConfigurationNode(string Key, string Path, string? Value,
     {
         foreach (var node in Children.Values)
         {
-            if (node.Key.ToUpperInvariant() is "WORKER" or "RETRY" or "BATCH" or "EXTERNAL" or "CALLLIMIT" or "POLLING" or "OBSERVATIONSCHEDULE" or "PHASES"
+            if (node.Key.ToUpperInvariant() is "WORKER" or "RETRY" or "BATCH" or "EXTERNAL" or "CALLLIMIT" or "POLLING" or "RESULTBATCH" or "OBSERVATIONSCHEDULE" or "PHASES"
                 || int.TryParse(node.Key, out _) && node.Children.Count > 0)
                 foreach (var leaf in node.Leaves()) yield return leaf;
             else yield return node;
@@ -54,8 +55,9 @@ internal sealed record ConfigurationNode(string Key, string Path, string? Value,
         if (Value is null || Children.Count > 0) throw new EventGuardConfigurationException(Path, "A scalar value is required.");
         try
         {
+            if (Key.Equals("ExternalPermitRetention", StringComparison.OrdinalIgnoreCase) && Value.Equals("disabled", StringComparison.OrdinalIgnoreCase)) return;
             if (new[] { "Enabled", "RequireNativeStorage" }.Contains(Key, StringComparer.OrdinalIgnoreCase)) _ = bool.Parse(Value);
-            else if (new[] { "MaximumConcurrency", "MaximumAttempts", "MaximumBatchSize", "MaximumSubmissionAttempts", "MaximumCalls", "FailureThreshold", "MaximumItems", "MaximumPayloadBytes" }
+            else if (new[] { "MaximumConcurrency", "MaximumAttempts", "MaximumBatchSize", "MaximumSubmissionAttempts", "MaximumCalls", "FailureThreshold", "MaximumItems", "MaximumPayloadBytes", "MaximumBytes" }
                 .Contains(Key, StringComparer.OrdinalIgnoreCase)) _ = int.Parse(Value, CultureInfo.InvariantCulture);
             else if (Key.Equals("JitterRatio", StringComparison.OrdinalIgnoreCase)) _ = double.Parse(Value, CultureInfo.InvariantCulture);
             else if (int.TryParse(Key, out _))

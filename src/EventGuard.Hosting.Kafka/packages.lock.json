@@ -256,7 +256,7 @@
       "eventguard.hosting": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Runtime": "[0.1.0-dev.30, )",
+          "EventGuard.Runtime": "[0.1.0-dev.31, )",
           "Microsoft.Extensions.Hosting": "[10.0.12, )"
         }
       },
@@ -264,13 +264,13 @@
         "type": "Project",
         "dependencies": {
           "Confluent.Kafka": "[2.15.1, )",
-          "EventGuard.Core": "[0.1.0-dev.30, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "Confluent.Kafka": {
@@ -580,7 +580,7 @@
       "eventguard.hosting": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Runtime": "[0.1.0-dev.30, )",
+          "EventGuard.Runtime": "[0.1.0-dev.31, )",
           "Microsoft.Extensions.Hosting": "[8.0.1, )"
         }
       },
@@ -588,13 +588,13 @@
         "type": "Project",
         "dependencies": {
           "Confluent.Kafka": "[2.15.1, )",
-          "EventGuard.Core": "[0.1.0-dev.30, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "Confluent.Kafka": {

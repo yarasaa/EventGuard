@@ -246,7 +246,7 @@ public sealed partial class PostgreSqlWorkStore : IExternalActionBatchStore
     }
 
     // Typed arrays avoid JSON/base64 expansion and keep the wire size proportional to the bounded page.
-    private static string AddExternalTable(NpgsqlCommand command, DataTable table)
+    internal static string AddExternalTable(NpgsqlCommand command, DataTable table)
     {
         var arguments = new List<string>(); var columns = new List<string>();
         foreach (DataColumn column in table.Columns)

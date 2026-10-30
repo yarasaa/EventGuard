@@ -106,20 +106,20 @@
       "eventguard.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Npgsql": "[10.0.3, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.store.conformance": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "xunit": "[2.9.3, )"
         }
       },
@@ -238,20 +238,20 @@
       "eventguard.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Npgsql": "[8.0.9, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.store.conformance": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "xunit": "[2.9.3, )"
         }
       },

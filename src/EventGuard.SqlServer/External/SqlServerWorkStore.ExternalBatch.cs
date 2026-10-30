@@ -108,6 +108,15 @@ public sealed partial class SqlServerWorkStore : IExternalActionBatchStore
         _ => "(state=2 AND observation=1)"
     };
 
+    private static string ExternalDueIndex(ExternalPhase phase) => phase switch
+    {
+        ExternalPhase.Submit => "ix_external_submit_due",
+        ExternalPhase.Reconcile => "ix_external_reconcile_due",
+        _ => "ix_external_observe_due"
+    };
+    // The hash keeps long adapter names out of index keys. Exact names still fence hash collisions.
+    private const string ExternalBindingPredicate = "binding_key=CONVERT(binary(32),HASHBYTES('SHA2_256',CONVERT(binary(4),DATALENGTH(@binding))+CONVERT(varbinary(max),@binding)+CONVERT(varbinary(max),@binding_version)))";
+
     public async Task<IReadOnlyList<ExternalActionClaim>> ClaimActionsAsync(ExternalBatchClaimRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -132,12 +141,12 @@ public sealed partial class SqlServerWorkStore : IExternalActionBatchStore
         var selectedColumns = string.Join(",", ExternalColumns.Split(',').Select(c => "a." + c));
         await using (var select = new SqlCommand($"""
             DECLARE @candidates TABLE(id uniqueidentifier PRIMARY KEY,next_at datetimeoffset(7),bytes bigint);
-            INSERT INTO @candidates SELECT TOP(@maximum) id,next_at,DATALENGTH(payload) FROM {_schema}.external_actions WITH(UPDLOCK,READPAST,ROWLOCK,FORCESEEK(ix_external_due(scope_id,next_at)))
-            WHERE scope_id=@scope AND binding_name=@binding AND binding_version=@binding_version
+            INSERT INTO @candidates SELECT TOP(@maximum) id,next_at,payload_bytes FROM {_schema}.external_actions WITH(UPDLOCK,READPAST,ROWLOCK,FORCESEEK({ExternalDueIndex(request.Phase)}(scope_id,binding_key,next_at)))
+            WHERE scope_id=@scope AND {ExternalBindingPredicate} AND binding_name=@binding AND binding_version=@binding_version
               AND {ExternalDuePredicate(request.Phase)} AND next_at<=@now AND (lease_until IS NULL OR lease_until<=@now) ORDER BY next_at,id;
             WITH bounded AS (SELECT id,SUM(bytes) OVER(ORDER BY next_at,id ROWS UNBOUNDED PRECEDING) AS bytes FROM @candidates)
             SELECT {selectedColumns} FROM bounded b
-            JOIN {_schema}.external_actions a WITH(UPDLOCK,ROWLOCK,FORCESEEK(1(scope_id,id))) ON a.scope_id=@scope AND a.id=b.id
+            JOIN {_schema}.external_actions a WITH(UPDLOCK,READPAST,ROWLOCK,FORCESEEK(1(scope_id,id))) ON a.scope_id=@scope AND a.id=b.id
             WHERE b.bytes<=@bytes ORDER BY a.next_at,a.id OPTION(FORCE ORDER,LOOP JOIN);
             """, connection, transaction))
         {

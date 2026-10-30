@@ -12,6 +12,17 @@ public sealed class ExternalBatchWorkerTests
         leaseDuration: TimeSpan.FromMinutes(5), idleDelay: TimeSpan.FromMilliseconds(5)), TimeSpan.FromSeconds(5));
 
     [Fact]
+    public async Task Full_retention_pages_continue_next_poll_until_the_backlog_is_drained()
+    {
+        var limiter = new Limiter();
+        limiter.PruneResults.Enqueue(1000); limiter.PruneResults.Enqueue(1000); limiter.PruneResults.Enqueue(5);
+        var worker = new ExternalBatchWorker(new Store(0),Scope,new Adapter(),ExternalPhase.Submit,
+            limit:new("test","service",10,TimeSpan.FromSeconds(1)),limiter:limiter);
+        for(var i=0;i<4;i++) Assert.Null(await worker.RunOnceAsync());
+        Assert.Equal(3,limiter.PruneCalls);
+    }
+
+    [Fact]
     public async Task Two_hundred_fifty_items_use_three_calls_with_reordered_item_results()
     {
         var store = new Store(250); var adapter = new Adapter();
@@ -305,8 +316,12 @@ public sealed class ExternalBatchWorkerTests
         public Task<IReadOnlyList<ExternalBatchItemResult>> ExecuteAsync(ExternalBatchRequest request, CancellationToken ct) => throw new NotImplementedException();
     }
 
-    private sealed class Limiter : IExternalCallLimiter
+    private sealed class Limiter : IExternalCallLimiter, IExternalCallPermitMaintenance
     {
+        public Queue<int> PruneResults { get; } = new();
+        public int PruneCalls { get; private set; }
+        public Task<int> PruneCallPermitsAsync(ExternalCallLimit limit,TimeSpan retention,int maximumItems=1000,CancellationToken ct=default)
+        { PruneCalls++; Assert.Equal(1000,maximumItems); return Task.FromResult(PruneResults.TryDequeue(out var count) ? count : 0); }
         public bool Denied { get; set; }
         public List<ExternalCallOutcome> Outcomes { get; } = [];
         public Task<ExternalCallPermit?> TryAcquireCallAsync(ExternalCallLimit limit, Guid requestId, TimeSpan duration, CancellationToken ct = default)

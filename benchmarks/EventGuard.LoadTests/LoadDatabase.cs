@@ -98,6 +98,7 @@ internal sealed class LoadDatabase<TSession>(ITransactionalWorkStore<TSession> s
             SELECT @sql+=N'ALTER TABLE '+QUOTENAME(s.name)+N'.'+QUOTENAME(t.name)+N' DROP CONSTRAINT '+QUOTENAME(f.name)+N';'
             FROM sys.foreign_keys f JOIN sys.tables t ON f.parent_object_id=t.object_id JOIN sys.schemas s ON s.schema_id=t.schema_id WHERE s.name='{Schema}';
             SELECT @sql+=N'DROP TABLE '+QUOTENAME('{Schema}')+N'.'+QUOTENAME(name)+N';' FROM sys.tables WHERE schema_id=SCHEMA_ID('{Schema}');
+            SELECT @sql+=N'DROP TYPE '+QUOTENAME('{Schema}')+N'.'+QUOTENAME(name)+N';' FROM sys.types WHERE is_user_defined=1 AND schema_id=SCHEMA_ID('{Schema}');
             SET @sql+=N'DROP SCHEMA '+QUOTENAME('{Schema}')+N';'; EXEC sys.sp_executesql @sql;
             """, ct);
     }

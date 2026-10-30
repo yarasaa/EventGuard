@@ -182,13 +182,13 @@
       "eventguard.operations": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[9.0.21, )"
         }
@@ -375,13 +375,13 @@
       "eventguard.operations": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[8.0.2, )"
         }

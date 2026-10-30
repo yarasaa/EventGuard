@@ -164,20 +164,20 @@
         "type": "Project",
         "dependencies": {
           "Confluent.Kafka": "[2.15.1, )",
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Npgsql": "[10.0.3, )"
         }
       },
       "eventguard.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[9.0.21, )"
         }
@@ -388,20 +388,20 @@
         "type": "Project",
         "dependencies": {
           "Confluent.Kafka": "[2.15.1, )",
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Npgsql": "[8.0.9, )"
         }
       },
       "eventguard.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[8.0.2, )"
         }

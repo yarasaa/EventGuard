@@ -28,14 +28,20 @@ public sealed class ExternalActionWorker
     {
         _limit = limit ?? throw new ArgumentNullException(nameof(limit));
         _limiter = limiter ?? throw new ArgumentNullException(nameof(limiter));
+        _maintenance = new(_limiter, _limit, _options);
     }
+
+    private readonly ExternalPermitMaintenance? _maintenance;
 
     public async Task<ExternalSettlement?> RunOnceAsync(CancellationToken cancellationToken = default)
     {
         ExternalCallPermit? permit = null;
         if (_limiter is not null)
         {
-            permit = await _limiter.TryAcquireCallAsync(_limit!, Guid.NewGuid(), _options.LeaseDuration, cancellationToken);
+            await _maintenance!.RunAsync(cancellationToken);
+            if (_store is IExternalActionAvailability available
+                && !await available.HasDueActionsAsync(_scope, _adapter.Binding, _adapter.BindingVersion, _phase, cancellationToken)) return null;
+            permit = await _limiter.TryAcquireCallAsync(_limit!, ExternalCallRequestIds.New(), _options.LeaseDuration, cancellationToken);
             if (permit is null) return null;
         }
         var invoked = false; var outcome = ExternalCallOutcome.Unhealthy;

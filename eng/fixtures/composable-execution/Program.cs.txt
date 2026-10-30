@@ -88,16 +88,19 @@ async Task Run<TSession>(ITransactionalJobStore<TSession> jobs, IExternalActionS
     }
     // Application-owned mapping and SQL. A failed status transaction must not resend the request.
     var failedStatusWrites = 0;
-    var projection = new ExternalResultWorker<TSession>(jobs, resultTarget, async (update, session, token) =>
+    var projection = new ExternalResultBatchWorker<TSession>((IExternalResultBatchStore<TSession>)jobs, resultTarget, async (updates, session, token) =>
     {
-        var account = partnerContract.Decode(update.Action.CopyPayload());
+        var rows = updates.Select(update => new { id = partnerContract.Decode(update.Action.CopyPayload()).AccountId,
+            status = update.Observation == ExternalObservationState.Succeeded ? "active" : update.State.ToString(),
+            reference = update.ProviderReference ?? "" }).ToArray();
         await using var command = commandFactory(session);
-        command.CommandText = $"UPDATE {schema}.partner_status SET status=@status, reference=@reference WHERE account_id=@id";
-        AddParameter(command, "status", update.Observation == ExternalObservationState.Succeeded ? "active" : update.State.ToString());
-        AddParameter(command, "reference", update.ProviderReference ?? ""); AddParameter(command, "id", account.AccountId);
-        if (await command.ExecuteNonQueryAsync(token) != 1) throw new InvalidOperationException("Application row missing.");
+        command.CommandText = provider == "sqlserver"
+            ? $"UPDATE p SET status=x.status,reference=x.reference FROM {schema}.partner_status p JOIN OPENJSON(@rows) WITH(id varchar(40),status varchar(40),reference varchar(64)) x ON p.account_id=x.id"
+            : $"UPDATE {schema}.partner_status p SET status=x.status,reference=x.reference FROM jsonb_to_recordset(CAST(@rows AS jsonb)) AS x(id text,status text,reference text) WHERE p.account_id=x.id";
+        AddParameter(command,"rows",JsonSerializer.Serialize(rows));
+        if (await command.ExecuteNonQueryAsync(token) != rows.Length) throw new InvalidOperationException("Application row missing.");
         if (Interlocked.CompareExchange(ref failedStatusWrites, 1, 0) == 0) throw new IOException("Injected failure after status SQL.");
-    }, new(initialDelay: TimeSpan.FromMilliseconds(1), jitterRatio: 0), new(maximumConcurrency: 2, idleDelay: TimeSpan.FromMilliseconds(10)));
+    }, retry: new(initialDelay: TimeSpan.FromMilliseconds(1), jitterRatio: 0), pump: new(maximumConcurrency: 2, idleDelay: TimeSpan.FromMilliseconds(10)));
     using var projectionStop = CancellationTokenSource.CreateLinkedTokenSource(ct);
     var projecting = projection.RunAsync(projectionStop.Token);
     int projectedStatuses;
@@ -120,7 +123,7 @@ async Task Run<TSession>(ITransactionalJobStore<TSession> jobs, IExternalActionS
     if (effects != 9 || actions.Count != 3 || service.Submits != 3) throw new InvalidOperationException("Conservation check failed.");
     var preparation = await Preparation(jobs, external, connection, commandFactory, sourceFactory, ct);
     Console.WriteLine(JsonSerializer.Serialize(new { preparation, provider, businessModels = 3, jobs = 6, uniqueEffects = effects, externalActions = actions.Count,
-        service.Submits, service.Lookups, service.Observations, projectedStatuses, failedStatusWrites, allSucceeded = true, syntheticService = true }));
+        service.Submits, service.Lookups, service.Observations, projectedStatuses, failedStatusWrites, nativeResultProjection = true, allSucceeded = true, syntheticService = true }));
 
     async Task Domain<T>(string name, T[] items, Func<T, string> key, Func<T, TSession, CancellationToken, Task>? after = null) where T : notnull
     {
@@ -201,11 +204,21 @@ async Task<PreparationEvidence> Preparation<TSession>(ITransactionalJobStore<TSe
     {
         var result=await jobs.ExecuteAsync(claim,async(_,bytes,session,token)=>
         {
-            await JsonJobBatches.ExecuteAsync(job,batchContract.Decode(bytes),itemContract,session,async(item,s,cancel)=>
+            await JsonJobBatches.ExecuteBatchAsync(job,batchContract.Decode(bytes),itemContract,session,async(fresh,s,cancel)=>
             {
-                await using var command=commandFactory(s); command.CommandText=$"INSERT INTO {schema}.selected_status VALUES(@id,'queued')"; AddParameter(command,"id",item.Id); await command.ExecuteNonQueryAsync(cancel);
-                var id=new Guid(Convert.FromHexString(StableHash.Of("selection-service/v1",scope.Id,item.Id.ToString(System.Globalization.CultureInfo.InvariantCulture))).AsSpan(0,16));
-                await s.ExternalActions.EnqueueAsync(new(scope,id,"callback-service","v1",itemContract.Encode(item),TimeSpan.FromMinutes(2)),target,cancel); actionCount++;
+                await using var command=commandFactory(s);
+                command.CommandText=provider=="sqlserver"
+                    ? $"INSERT INTO {schema}.selected_status SELECT CONVERT(int,value),'queued' FROM OPENJSON(@ids)"
+                    : $"INSERT INTO {schema}.selected_status SELECT value::int,'queued' FROM jsonb_array_elements_text(CAST(@ids AS jsonb)) x(value)";
+                AddParameter(command,"ids",JsonSerializer.Serialize(fresh.Select(i=>i.Value.Id)));
+                await command.ExecuteNonQueryAsync(cancel);
+                var intents=fresh.Select(i=>
+                {
+                    var item=i.Value;
+                    var id=new Guid(Convert.FromHexString(StableHash.Of("selection-service/v1",scope.Id,item.Id.ToString(System.Globalization.CultureInfo.InvariantCulture))).AsSpan(0,16));
+                    return new ExternalActionIntent(new(scope,id,"callback-service","v1",itemContract.Encode(item),TimeSpan.FromMinutes(2)),target);
+                });
+                await s.ExternalActions.EnqueueBatchAsync(new(intents),cancel); actionCount+=fresh.Count;
             },token);
         },new(),ct);
         if(result.Status!=ExecutionStatus.Completed) throw new InvalidOperationException("Selected item handler failed.");

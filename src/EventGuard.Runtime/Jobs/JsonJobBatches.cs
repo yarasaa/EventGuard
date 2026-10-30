@@ -48,6 +48,33 @@ public static class JsonJobBatches
         return new(applied, items.Count - applied);
     }
 
+    /// <summary>Opt-in native preparation. The application handler receives a whole fresh page in the same transaction.</summary>
+    public static async ValueTask<JobBatchResult> ExecuteBatchAsync<T, TSession>(JobDefinition definition, JobBatch<T> batch,
+        JsonMessageContract<T> itemContract, TSession session,
+        Func<IReadOnlyList<JobBatchItem<T>>, TSession, CancellationToken, ValueTask> handler,
+        CancellationToken cancellationToken = default) where T : notnull where TSession : IJobItemSession
+    {
+        ArgumentNullException.ThrowIfNull(definition); ArgumentNullException.ThrowIfNull(itemContract);
+        ArgumentNullException.ThrowIfNull(session); ArgumentNullException.ThrowIfNull(handler);
+        ValidateItems(batch, 1000);
+        if (session.JobItems is not IJobItemBatchWriter native) throw new NotSupportedException("This session does not support native job item batches.");
+        var inputs = new Dictionary<string, (JobItemSubmission Submission, byte[] Bytes)>();
+        long total = 0;
+        foreach (var item in batch.Items)
+        {
+            var bytes = itemContract.Encode(item.Value); total += bytes.Length;
+            if (total > 1024 * 1024) throw new IngressMessageRejectedException("job-batch-too-large");
+            var submission = new JobItemSubmission(definition, item.Key, new(itemContract.Name, itemContract.Version), bytes);
+            inputs.Add(submission.Id, (submission, bytes));
+        }
+        var applied = await native.ApplyBatchAsync(new(inputs.Values.Select(i => i.Submission)), async (fresh, ct) =>
+        {
+            var values = fresh.Select(i => new JobBatchItem<T>(i.Key, itemContract.Decode(inputs[i.Id].Bytes))).ToArray();
+            await handler(Array.AsReadOnly(values), session, ct);
+        }, cancellationToken);
+        return new(applied, inputs.Count - applied);
+    }
+
     private static void ValidateItems<T>(JobBatch<T> batch, int maximumItems) where T : notnull
     {
         if (batch?.Items is null || batch.Items.Count is < 1 || batch.Items.Count > maximumItems

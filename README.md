@@ -16,17 +16,20 @@ provider, business fields, batch size and deployment platform do not define the 
 See the [general-purpose design requirements](#general-purpose-design-requirements) for
 the development scope and performance acceptance rules. These requirements include open work.
 
-**Status:** experimental `0.1.0-dev.30`. The name, API and schema are provisional.
-Install the exact preview version from nuget.org, or build from source using the local feed below.
+**Status:** experimental `0.1.0-dev.31` release candidate; publication pending.
+The name, API and schema are provisional. Examples and templates target dev.31.
+Until its NuGet publication is verified, build this candidate from source using the local feed below.
+The last verified published preview is `0.1.0-dev.30`.
 See the [development acceptance criteria](#development-acceptance-criteria) for remaining work.
 The optional modules add
 typed jobs, consistent source snapshots, batches, external-service result handling and durable
 workflows. Your application supplies its business models, queries and service adapters.
 
 Base schemas: **PostgreSQL 11 / SQL Server 8**. Optional schemas:
-**Jobs 2 / External actions 4 / Snapshots 1 / Workflows 1** in published dev.30.
-The unreleased source requires **External actions 5** for native bulk storage; see
-[native external storage](#native-external-storage-unreleased) before upgrading. Enable only the modules you need.
+**Jobs 3 / External actions 9 / Snapshots 1 / Workflows 1** in dev.31.
+Published dev.30 uses Jobs 2 and External actions 4; see
+[native external storage](#native-external-storage-dev31) for the migration and permissions
+required before upgrading. Enable only the modules you need.
 Local correctness checks have passed; production deployment and capacity qualification remain
 open. See [known limitations](#known-limitations) before adopting. **License:** [MIT](https://github.com/yarasaa/EventGuard/blob/main/LICENSE).
 
@@ -36,7 +39,7 @@ open. See [known limitations](#known-limitations) before adopting. **License:** 
 | --- | --- |
 | See the complete HTTP → broker → worker → dashboard flow | [Quick start](#quick-start) |
 | Add EventGuard to a new or existing .NET application | [Hosted worker quick start](#hosted-worker-quick-start), then [adapt it to your project](#adapt-it-to-your-project) |
-| Change batch sizes, concurrency, timeouts or report schedules | [JSON and environment configuration](#configuration-from-json-and-environment-variables) (unreleased) |
+| Change batch sizes, concurrency, timeouts or report schedules | [JSON and environment configuration](#configuration-from-json-and-environment-variables) (dev.31) |
 | Configure login, scopes and the operations UI | [Configure the dashboard](#configure-the-dashboard) |
 
 You can run a consumer without a broker or dashboard. Add the transport when you need
@@ -320,10 +323,11 @@ should retain their ordinary immutable package lock files.
 
 ## Use the packages in your application
 
-For the published preview, install the packages directly from nuget.org; cloning or
-building this repository is not required. Keep all EventGuard packages on the same exact
-preview version. If your application has a `NuGet.Config`, ensure nuget.org is enabled
-and preserve any other feeds it needs:
+After dev.31 is published and verified, install the packages directly from nuget.org;
+cloning or building this repository is then unnecessary. Until then, build the candidate
+and enable the local feed described below. Keep all EventGuard packages on the same exact
+preview version. If your application has a `NuGet.Config`, preserve its existing feeds
+and enable nuget.org for upstream dependencies:
 
 ```xml
 <configuration>
@@ -335,9 +339,9 @@ and preserve any other feeds it needs:
 ```
 
 ```bash
-dotnet add package EventGuard.PostgreSql --version 0.1.0-dev.30
-dotnet add package EventGuard.Runtime --version 0.1.0-dev.30
-dotnet add package EventGuard.RabbitMq --version 0.1.0-dev.30
+dotnet add package EventGuard.PostgreSql --version 0.1.0-dev.31
+dotnet add package EventGuard.Runtime --version 0.1.0-dev.31
+dotnet add package EventGuard.RabbitMq --version 0.1.0-dev.31
 ```
 
 Nuget.org also supplies native-driver and framework dependencies. For repeatable restore,
@@ -370,11 +374,11 @@ NuGet package. All packages target modern .NET 8/10, not .NET Framework 4.x.
 
 ## Hosted worker quick start
 
-**Working-tree update, not yet published:** the template on this checkout uses the new
-configuration API described below and requires packages built from this checkout. For a
+**dev.31 candidate:** this template uses the configuration API described below and
+requires dev.31 packages. Until publication is verified, build them from this checkout. For a
 NuGet-only installation of published `0.1.0-dev.30`, use the
 [published template revision](https://github.com/yarasaa/EventGuard/tree/0434e0ff7143f462b5f7a590a7a60e4fdfc37433/templates/EventGuard.Worker)
-until the next release is published.
+until dev.31 is published.
 
 This is the recommended starting point for a Worker Service or ASP.NET Core application.
 The [worker template](https://github.com/yarasaa/EventGuard/tree/main/templates/EventGuard.Worker) separates contracts, handlers,
@@ -383,8 +387,7 @@ supports PostgreSQL and SQL Server. The default is a PostgreSQL product projecti
 replace that business model/handler with your own.
 
 The template is distributed in the source repository. Clone it, then run these commands
-with `dotnet` on your PATH; building the libraries is unnecessary when using the published
-preview. Create the application **outside the EventGuard checkout** so it does not
+with `dotnet` on your PATH; use the local candidate feed until dev.31 is published. Create the application **outside the EventGuard checkout** so it does not
 inherit this repository's central build settings:
 
 ```bash
@@ -547,7 +550,7 @@ native database atomicity. The package does not install broker topology, authent
 
 ### Configuration from JSON and environment variables
 
-**Unreleased:** this section applies to the current source, not published `0.1.0-dev.30`.
+**Added in dev.31:** these configuration APIs are unavailable in `0.1.0-dev.30`.
 Keep business contracts, identity selectors and service adapters in code. Set operational
 values in `appsettings.json`, environment variables or any .NET configuration provider:
 
@@ -636,15 +639,18 @@ or prevent an application's direct calls to `SubmitAsync`.
 | Profile setting | Default and supported values |
 | --- | --- |
 | `Enabled` | `true` |
-| `Worker.MaximumConcurrency` | 4 for typed consumers/single workers; 1 for batch workers; 1–1,024, per process and per selected phase |
+| `Worker.MaximumConcurrency` | 4 for typed consumers/single/result-page workers; 1 for remote batch workers; 1–1,024, per process and per selected phase |
 | `Worker.LeaseDuration` | 30 seconds; positive, at most one hour |
 | `Worker.IdleDelay`, `Worker.FaultDelay` | 250 ms / 1 second; positive, at most one minute |
 | `Worker.StartupTimeout`, `Worker.SettlementTimeout` | 5 / 10 seconds; positive supported timer durations |
 | `Worker.ExternalCallTimeout` | Omitted: remaining lease; configured: positive timer duration, capped by the actual remaining lease and shared permit |
+| `Worker.ExternalPermitRetention`, `ExternalPermitCleanupInterval` | 1 day / 5 minutes. Retention: 1 hour–365 days or `disabled`; interval: 1 second–1 day. Full cleanup pages continue on subsequent polls. |
+| `ResultBatch.MaximumItems`, `MaximumBytes` | 100 / 8 MiB; 1–1,000 items and 1.125–64 MiB of combined action, state and response bytes. |
+| `ResultBatch.ExecutionTimeout`, `FailureRecordingTimeout` | 30 / 10 seconds; positive and at most one hour. Handlers must honor cancellation. |
 | `Retry.MaximumAttempts`, `InitialDelay`, `MaximumDelay`, `JitterRatio` | 5 / 1 second / 1 minute / 0.2; attempts at least 1, positive delays with initial ≤ maximum ≤ 30 days, jitter 0–1 |
 | `Batch.MaximumBatchSize`, `CollectionWindow` | 100 / 1 second; batch size any positive `Int32`, collection capped by one quarter of the lease; memory, payload size and provider limits still apply |
 | `Batch.MaximumPayloadBytes` | 8 MiB; integer bytes, at least 1 MiB. Bounds raw action payloads per remote call; provider encoding may add bytes. |
-| `Batch.RequireNativeStorage` | `false`; set `true` to reject a third-party store that lacks `IExternalActionBatchStore`. PostgreSQL and SQL Server implement it in the unreleased source. |
+| `Batch.RequireNativeStorage` | `false`; set `true` to reject a third-party store that lacks `IExternalActionBatchStore`. PostgreSQL and SQL Server implement it in dev.31. |
 | `External.MaximumSubmissionAttempts`, `RetryDelay` | 5 / 30 seconds; 1–1,000 attempts, delay 10 ms–1 day |
 | `External.ObservationInterval` | 1 minute; 10 ms–1 day, alternative to a schedule |
 | `External.ObservationSchedule` | Optional 1–64 `{After, Interval}` steps; starts at zero, strictly increasing `After` up to 365 days; intervals 10 ms–1 day |
@@ -667,6 +673,7 @@ agree across replicas and restarts; a quota identity is not a way to bypass an e
 
 `AddJsonConsumer`, `AddKafkaJsonConsumer` and `AddRabbitMqJsonConsumer` automatically consume
 `Worker`/`Retry`. `AddExternalBatchService` consumes `Worker`/`Batch`/`External`/`CallLimit`/`Phases`.
+`AddExternalResultBatch` consumes `Worker`/`Retry`/`ResultBatch`.
 `Enabled` applies to all registrations. For existing low-level workers, explicitly pass options
 from the same configuration snapshot when constructing the DI-owned instance:
 
@@ -811,8 +818,8 @@ Create `NuGet.Config` in that directory using the [package-source configuration 
 Then install only the packages needed for this consumer:
 
 ```bash
-dotnet add package EventGuard.PostgreSql --version 0.1.0-dev.30
-dotnet add package EventGuard.Runtime --version 0.1.0-dev.30
+dotnet add package EventGuard.PostgreSql --version 0.1.0-dev.31
+dotnet add package EventGuard.Runtime --version 0.1.0-dev.31
 ```
 
 Replace the generated `Program.cs` with this **complete file**:
@@ -1440,7 +1447,7 @@ examples below target .NET 10; a .NET 8 application needs a matching runtime ima
    ```bash
    dotnet publish -c Release -p:AssemblyName=EventGuardWorker -o ./publish
    docker build -f /absolute/path/to/EventGuard/deploy/Dockerfile.worker \
-     -t YOUR_REGISTRY/eventguard-worker:0.1.0-dev.30 ./publish
+     -t YOUR_REGISTRY/eventguard-worker:0.1.0-dev.31 ./publish
    # From the EventGuard checkout, build the dashboard image:
    bash eng/dashboard-image.sh
    ```
@@ -1577,8 +1584,8 @@ Run optional migrations with a deployment/migration identity before starting wor
 
 ```csharp
 // The same methods exist on PostgreSqlWorkStore and SqlServerWorkStore.
-await store.InitializeJobsAsync();             // Jobs schema 2, including item receipts
-await store.InitializeExternalActionsAsync(); // Published dev.30: schema 4; unreleased source: schema 5; optional
+await store.InitializeJobsAsync();             // Jobs schema 3, including native item preparation
+await store.InitializeExternalActionsAsync(); // dev.31: optional schema 9 (dev.30 used schema 4)
 ```
 
 These migrations first check/initialize the base store. They are additive and independently
@@ -1669,8 +1676,8 @@ observing multiple actions in one real remote call. The application supplies its
 client, authentication, DTOs and response interpretation. No SMS-specific model or endpoint
 is assumed. Register the adapter once:
 
-**Unreleased configuration update:** published `0.1.0-dev.30` accepts batch sizes from 1 to
-100. The current source removes that fixed ceiling: `maximumBatchSize` accepts any positive
+**dev.31 configuration update:** `0.1.0-dev.30` accepts batch sizes from 1 to
+100. dev.31 removes that fixed ceiling: `maximumBatchSize` accepts any positive
 integer, with 100 retained as the default. For example,
 `new ExternalBatchWorkerOptions(maximumBatchSize: 500)` allows up to 500 items per call.
 Read this value from your application's configuration and choose it to match the provider's
@@ -1775,13 +1782,13 @@ that contract. Unknown items remain held rather than being automatically resent.
 Collection stops at the item limit, raw payload byte budget, an empty claim, or its time
 budget; it does not wait for a full batch. Concurrency counts calls, so two loops can have up
 to 200 active items at size 100. Increasing the item limit does not extend collection, call
-or settlement time budgets. Each action remains bounded to 1 MiB. The unreleased source
+or settlement time budgets. Each action remains bounded to 1 MiB. dev.31
 adds `MaximumPayloadBytes` (8 MiB by default, at least 1 MiB so any valid single action can
 make progress). It bounds the sum of raw action payloads; result bytes, metadata, serialization
 and copies need additional memory. The adapter must enforce its provider's encoded request
 limit. The collection window is checked between storage operations; database/client timeouts
 and cancellation still bound a slow operation. The earliest lease bounds the remote call.
-Published dev.30 uses per-item storage. The unreleased source automatically selects the native
+dev.30 uses per-item storage. dev.31 automatically selects the native
 multi-item path described below, with an explicit fallback for third-party stores.
 
 Schedule ages are measured from persisted acceptance and pending due times survive restarts.
@@ -1796,7 +1803,7 @@ These semantics address the per-item correlation and partial-failure concerns il
 [Dapr bulk messaging](https://docs.dapr.io/developing-applications/building-blocks/pubsub/pubsub-bulk/).
 Those references do not imply a bundled Graph or Dapr adapter.
 
-### Native external storage (unreleased)
+### Native external storage (dev.31)
 
 `IExternalActionBatchStore` is an optional capability alongside `IExternalActionStore`.
 The native PostgreSQL implementation transfers typed arrays and uses set-based updates;
@@ -1853,8 +1860,12 @@ remains separate and retryable. A failed storage page never causes an automatic 
 remote call; retry identical saved evidence or reconcile unresolved items.
 
 **Upgrade:** stop external writers/workers, back up and call `InitializeExternalActionsAsync()`
-with migration privileges. External schema 5 adds claim receipts, nullable attempt membership,
-an index and SQL Server TVP types. Startup rejects schema 4 until migration.
+with migration privileges. External schemas 5–9 add native acquisition/settlement receipts,
+phase-specific due indexes, bounded call-permit retirement and preparation/result TVPs.
+Jobs schema 3 adds native item preparation. Run `InitializeJobsAsync()` too when using that
+capability. Startup requires the matching module schema. Index creation on a large existing
+table needs a maintenance window and free transaction-log/disk space; rehearse the upgrade
+against a restored copy before production.
 SQL Server batch workers also check `EXECUTE` and `REFERENCES` on the four new table types
 before taking work. Grant these to your existing worker role with the deployment identity,
 in addition to its existing table permissions. Use your own schema/role names:
@@ -1864,14 +1875,21 @@ GRANT EXECUTE, REFERENCES ON TYPE::eventguard.external_batch_ids TO eventguard_w
 GRANT EXECUTE, REFERENCES ON TYPE::eventguard.external_batch_changes TO eventguard_worker;
 GRANT EXECUTE, REFERENCES ON TYPE::eventguard.external_batch_projections TO eventguard_worker;
 GRANT EXECUTE, REFERENCES ON TYPE::eventguard.external_batch_bindings TO eventguard_worker;
+-- Also required when enabling native preparation and result application:
+GRANT EXECUTE, REFERENCES ON TYPE::eventguard.job_item_inputs TO eventguard_worker;
+GRANT EXECUTE, REFERENCES ON TYPE::eventguard.external_action_inputs TO eventguard_worker;
+GRANT EXECUTE, REFERENCES ON TYPE::eventguard.external_result_ids TO eventguard_worker;
+GRANT EXECUTE, REFERENCES ON TYPE::eventguard.external_result_versions TO eventguard_worker;
+GRANT EXECUTE, REFERENCES ON TYPE::eventguard.external_result_changes TO eventguard_worker;
 ```
 
 See [SQL Server TVP permissions](https://learn.microsoft.com/en-us/sql/relational-databases/tables/use-table-valued-parameters-database-engine#permissions).
 These checks cover the native types; they do not validate arbitrary application SQL grants. Upgrades from
 schemas 1 and 4, preservation of an in-flight single claim, and repeated initialization have
-native integration tests. Do not mix dev.30 and schema-5 writers. Rollback requires a verified
-backup restore, not just an older package. Receipt/evidence retention is still open; do not
-delete receipts independently of member attempts.
+native integration tests. Do not mix dev.30 and schema-9 writers. Rollback requires a verified
+backup restore, not just an older package. Action payloads, result snapshots and acquisition
+receipts still require an application-qualified retention policy; do not delete them
+independently of member attempts. Call-permit retention is described below.
 
 **Local comparison:** `ExternalBatchExchangeTests` uses the actual database protocol on
 loopback, 1 KiB action payloads and 64-byte results. Both paths claim and settle the same
@@ -1891,6 +1909,115 @@ and 16 without it. Counts include transaction/control exchanges, so two public s
 are not claimed to be two network round trips. No timing threshold is used as a correctness
 assertion. Large backlogs, payload distributions, multi-node failover and long-running SQL
 Server/PostgreSQL capacity measurements remain required.
+
+### Native preparation and application updates (dev.31)
+
+Remote batching alone does not remove database calls during job preparation or application
+status updates. Opt in to `JsonJobBatches.ExecuteBatchAsync` and
+`session.ExternalActions.EnqueueBatchAsync` to prepare a page with native SQL. The job helper
+invokes application code once with only the fresh items; existing matching item receipts are
+skipped, and any conflicting item rejects the whole page. Receipts, your SQL and action intents
+share the owning job transaction. All-or-nothing preparation survives rollback and rebatching.
+The original per-item methods keep their existing behavior.
+
+```csharp
+await JsonJobBatches.ExecuteBatchAsync(definition, batch, itemContract, session,
+    async (fresh, sql, ct) => {
+        // Application-owned mapping; keep action IDs stable for each logical operation.
+        var intents = fresh.Select(item => new ExternalActionIntent(
+            BuildAction(item.Value), resultTarget));
+        await sql.ExternalActions.EnqueueBatchAsync(new ExternalActionEnqueueBatch(intents), ct);
+        // Your optional set-based application INSERT/UPDATE enlists in sql.Transaction.
+    }, cancellationToken);
+```
+
+Native intent pages require one producer scope, distinct IDs, 1–1,000 items and at most
+64 MiB of raw action payload. Typed job pages retain their separate 1 MiB envelope/item-byte
+limit. Preparation SQL does not silently fall back to per-item execution on a custom store
+without `IJobItemBatchWriter` / `IExternalActionBatchWriter`.
+
+`ExternalResultBatchWorker<TSession>` and `IExternalResultBatchStore<TSession>` apply durable
+result work in native pages. Use this for **latest-state projections**: multiple queued
+versions of one action within a page coalesce to the latest version. Older versions complete
+without calling application code; the position lock also prevents an older single-item
+worker from regressing a newer result. Use `ExternalResultWorker` when the application must
+observe each intermediate transition.
+
+```csharp
+services.AddEventGuard(configuration).AddExternalResultBatch<SqlServerSession>(
+    "application-status", resultTarget,
+    async (updates, sql, ct) => {
+        // One application-owned TVP/OPENJSON UPDATE using sql.Connection/sql.Transaction.
+        // On PostgreSQL use PostgreSqlSession and a typed-array/unnest UPDATE.
+        await ApplyStatusesInOneStatement(updates, sql, ct);
+    },
+    batch: new ExternalResultBatchOptions(maximumItems: 250),
+    storeFactory: sp => sp.GetRequiredService<SqlServerWorkStore>());
+```
+
+A result page locks eligible work, admits the tenant budget **per work item**, checks immutable
+snapshots, and commits application SQL, projection positions, attempt history and work outcomes
+atomically. Failure rolls back the entire page before recording bounded retries under new
+locks. Other workers may win those records after rollback; unchanged-version checks prevent
+stale failure recording. A lost commit response is surfaced as uncertain; a later poll does
+not reapply completed work. No remote service call runs inside this transaction.
+
+Count and combined byte limits apply before payload hydration. An execution timeout bounds
+the SQL callback cooperatively; failure recording has an independent timeout. The supplied
+batch session exposes application SQL only: work-scoped outbox/action/job/signal writers
+require the original per-result handler. The application owns row mapping, authorization and
+its own bulk SQL; looping individual UPDATE statements inside the callback forfeits that
+part of the throughput gain. A poison item retries/dead-letters its admitted page atomically;
+use smaller pages or the per-item worker if independent application failures matter more
+than batched throughput.
+
+Reproduce the bounded preparation-to-projection comparison against disposable local schemas:
+
+```bash
+bash eng/dotnet.sh run --project benchmarks/EventGuard.LoadTests -c Release -f net10.0 -- \
+  --external-pipeline .artifacts/external-pipeline-new-run
+```
+
+It compares 100/250-item pages, 1 KiB action payloads, three alternating samples per path,
+with warm-up excluded and exactly-one-effect checks. Remote claim/settle is native in both
+paths; the changed stages are preparation and application projection. This is a development
+comparison, not a claim about sustained production throughput or millions of records/second.
+
+Local .NET 10 rerun (three-sample medians; SQL Server 2022 under local emulation,
+PostgreSQL 18; remote/network service time excluded):
+
+| 250-item pipeline | Per-item preparation/projection | Native preparation/projection | Ratio |
+| --- | --- | --- | --- |
+| SQL Server | 3,038 ms | 256 ms | 11.8× |
+| PostgreSQL | 1,751 ms | 67 ms | 26.1× |
+
+A separate SQL Server candidate-query probe held 100 ready items constant and added
+0/10,000/50,000/300,000 synthetic completed items. At 300,000, the old query used 11,580
+logical reads (median 177.6 ms); the phase/binding index used 210 (3.2 ms). The new query
+stayed at 210 logical reads at all four sizes. These are cached logical page reads, not
+physical disk I/O or evidence of draining a 300,000-item ready queue. Concurrent existing
+result bindings no longer require an update lock; the same-binding blocking reproduction
+also passed. Twenty idle limited polls produced zero permit rows, versus twenty before.
+
+### Idle polling and call-permit retention (dev.31)
+
+Native stores expose `IExternalActionAvailability`. A limiter-enabled worker checks this
+read-only hint before reserving quota, then still acquires a permit before claiming work.
+An idle queue no longer creates permit receipts. A race between the hint and claim can still
+produce an unused permit; it is returned through the existing quota protocol.
+
+Workers use timestamped `ExternalCallRequestIds.New()` IDs. With
+`IExternalCallPermitMaintenance`, expired permits older than `Worker.ExternalPermitRetention`
+(default one day) are retired in pages of at most 1,000. A full page schedules another pass
+on the next poll; once caught up, cleanup waits `ExternalPermitCleanupInterval` (five minutes).
+The limiter's durable retirement watermark makes deleted request IDs inadmissible, so cleanup
+cannot resurrect quota, refund twice or change circuit state. Active permits and legacy random
+GUID receipts are preserved. Raising retention later cannot undo an already committed watermark.
+Set retention to `disabled` for application-managed maintenance; direct limiter callers should
+use the timestamped IDs and invoke `PruneCallPermitsAsync` on their own schedule.
+
+This policy retires **call-permit receipts only**. It does not delete action payloads,
+provider evidence, result snapshots, job receipts or storage acquisition membership.
 
 ### Send through any service adapter
 
@@ -2025,7 +2152,7 @@ The target (scope/name/version) is immutable for an action. Keep the original ha
 until its pending results drain; a different version uses another work scope. Existing intents
 cannot acquire a result target retroactively. For an external-schema-1 upgrade: stop writers
 and workers, back up the database, call `InitializeExternalActionsAsync()` once with migration
-privileges to reach schema 4 in dev.30 (schema 5 in the unreleased source), then start the
+privileges to reach schema 9 in dev.31 (schema 4 in dev.30), then start the
 matching package version and validate the schema. The
 migration preserves old intents and their fingerprints; do not mix old and new module writers.
 Rollback requires restoring the backup, not just downgrading the package. Result snapshots
@@ -2154,7 +2281,7 @@ Switching new operations to another mode does not modify in-flight operations.
 ### Shared service limits and durable reports
 
 ```csharp
-await store.InitializeExternalActionsAsync(); // dev.30: schema 4; unreleased source: schema 5 (also native batches)
+await store.InitializeExternalActionsAsync(); // dev.31: schema 9, including native batches (dev.30 used schema 4)
 var budget = new ExternalCallLimit("tenant/provider-account", "send-api",
     maximumCalls: 500, window: TimeSpan.FromSeconds(1), maximumConcurrency: 8,
     failureThreshold: 5, breakDuration: TimeSpan.FromSeconds(30));
@@ -2204,7 +2331,7 @@ application result projections. No automatic correction or remote compensation i
 ### Durable workflows and application-owned status
 
 ```csharp
-await store.InitializeWorkflowsAsync(); // optional schema 1, Jobs schema 2
+await store.InitializeWorkflowsAsync(); // optional schema 1; dev.31 Jobs schema 3
 var definition = new WorkflowDefinition(jobScope, "provision", 1,
 [
     new("prepare", WorkflowStepKind.Job, job: preparationJob),
@@ -2283,7 +2410,7 @@ The package-only composition fixture covers a native filtered source with duplic
 selected items, 100/100/5 batches, repeated CDC acceptance, shared service capacity, early and
 duplicate callbacks, application status SQL and a completion signal/workflow. It also exercises
 three unrelated models and a lost service reply with lookup, observation and a failed status
-transaction. Services and normalized CDC transport are synthetic; native stores are real local
+transaction. The fixture exercises native item/action preparation and a native result-page SQL projection, while keeping the per-result workflow-signal example. Services and normalized CDC transport are synthetic; native stores are real local
 PostgreSQL/SQL Server fixtures. API compatibility, clean onboarding, fault tests and package
 content checks are separate release gates.
 
@@ -2640,7 +2767,7 @@ exchanges GitHub's identity for a short-lived publishing credential.
    Its artifact must contain all 16 packages and `release.json`; older runs without this
    artifact do not qualify. Record the numeric run ID from its Actions URL.
 2. Open **Actions → publish-nuget-preview → Run workflow**, choose `main`, enter that CI
-   run ID and the exact preview version from `Directory.Build.props` (currently `0.1.0-dev.30`).
+   run ID and the exact preview version from `Directory.Build.props` (currently `0.1.0-dev.31`).
    The workflow refuses another commit, another branch, a failed/incomplete CI run,
    pull-request builds, stable versions, missing/extra packages or changed package bytes.
    It downloads the tested packages without rebuilding or repeating the native test suite.
@@ -2674,12 +2801,12 @@ brokerless use. SQL Server and PostgreSQL are separate performance qualification
 | Remote batches with per-item results | Implemented in dev.30 | 250 items in calls of 100/100/50; reordered, missing, duplicate and invalid results; whole reply loss; cancellation; failed status persistence. Native PostgreSQL/SQL Server contracts and package-only composition checks cover .NET 8/10 with a synthetic provider. |
 | Easy service integration | Implemented in dev.30 | One `AddExternalBatchService` registration; JSON helpers; capability/schema validation before work; cooperative shutdown. Provider client and mapping are application code. |
 | Bulk report lookup and stepped polling | Implemented in dev.30 | Separate reconciliation/observation phases; elapsed-age intervals; durable due times and deadline capping. No resubmission on report timeout. |
-| Shared configuration and named worker profiles | Implemented in the working tree; unreleased | JSON/environment settings, startup validation, independent batch/concurrency/timing/phase settings, worker enablement and package-only template checks. Existing protocol and identity constraints remain enforced. |
+| Shared configuration and named worker profiles | Implemented in dev.31 candidate | JSON/environment settings, startup validation, independent batch/concurrency/timing/phase settings, worker enablement and package-only template checks. Existing protocol and identity constraints remain enforced. |
 | Fixed elapsed checkpoints | Open | Durable due times at configured offsets from a defined origin, explicit missed-checkpoint behavior, restart/callback races and terminal deadlines. Stepped intervals do not substitute for this policy. |
 | Provider-directed Retry-After and jitter | Open | Persist per-item retry hints, apply only to legal state transitions, test restart/clock boundaries and mixed partial throttling. |
-| Efficient and bounded batching | Native storage and raw byte/count/time bounds implemented in the working tree; unreleased | PostgreSQL arrays/set-based writes; SQL Server TVPs; atomic application result work; explicit fallback; real lost-commit tests; 100/250-item local exchange/timing comparisons. Encoded provider byte limits remain adapter-owned. Sustained large-backlog qualification on both stores is still open. |
+| Efficient and bounded batching | Native storage and raw byte/count/time bounds implemented in dev.31 candidate | PostgreSQL arrays/set-based writes; SQL Server TVPs; opt-in native job/action preparation and atomic application projection pages; phase/binding indexes; explicit remote-store fallback; real lost-commit tests; 100/250-item local exchange/timing comparisons. Encoded provider byte limits remain adapter-owned. Sustained large-backlog qualification on both stores is still open. |
 | Durable provider batch receipts | Open for providers that only reconcile whole batches | Freeze original call membership and provider/client batch ID before invocation; recover a lost whole-call reply by that ID and distribute evidence to item records. Current adapters must reconcile by stable item ID or a saved provider reference. |
-| Call and recipient quotas | Calls implemented within one store; weighted units open | Distinguish requests from recipients/bytes; separate send/query quotas; validate burst boundaries and shared-account behavior. Separate stores currently do not share a quota. |
+| Call and recipient quotas | Calls and bounded timestamped-permit retention implemented within one store; weighted units open | Empty polling creates no permits; retired IDs cannot regain quota. Distinguish requests from recipients/bytes; separate send/query quotas; validate burst boundaries and shared-account behavior. Separate stores currently do not share a quota. |
 | Dapr integration | Open | Typed ingress/egress registration; durable acceptance before SUCCESS; per-entry outcomes; sidecar restart, redelivery and authentication tests; KEDA deployment example. Dapr bulk API maturity must be checked for the selected platform version. |
 | Source preflight and selection preview | Open beyond current validation | Read-only permission/isolation checks, bounded preview/count estimate and documented replica freshness. Consistent SQL Server capture currently requires DBA-enabled snapshot isolation; never silently weaken consistency. |
 | External payload retention | Open beyond existing work/outbox and snapshot-staging cleanup | Terminal-state/age criteria, unresolved-record protection, archive acknowledgement, idempotent pruning and privacy-safe deduplication tombstones; include backups and result evidence. |

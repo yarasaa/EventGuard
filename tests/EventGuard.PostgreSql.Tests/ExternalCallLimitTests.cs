@@ -63,7 +63,7 @@ public sealed class ExternalCallLimitTests(DatabaseFixture db) : IClassFixture<D
         await db.Store.InitializeExternalActionsAsync(); var limit = Limit();
         var service = new Service(); var worker = new ExternalActionWorker(db.Store, new("tenant", "empty"), service, ExternalPhase.Submit, limit, db.Store);
         for (var n = 0; n < 5; n++) Assert.Null(await worker.RunOnceAsync());
-        var state = (await db.Store.ReadCallLimitAsync(limit))!; Assert.Equal(0, state.Used); Assert.Equal(0, state.Active); Assert.Equal(0, service.Calls);
+        Assert.Null(await db.Store.ReadCallLimitAsync(limit)); Assert.Equal(0, service.Calls);
     }
     [Theory]
     [InlineData(false)]

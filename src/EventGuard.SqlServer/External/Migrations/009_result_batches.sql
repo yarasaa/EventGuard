@@ -1,0 +1,4 @@
+EXEC(N'CREATE TYPE __SCHEMA__.external_result_ids AS TABLE(work_id uniqueidentifier NOT NULL PRIMARY KEY,version bigint NOT NULL)');
+EXEC(N'CREATE TYPE __SCHEMA__.external_result_versions AS TABLE(action_id uniqueidentifier NOT NULL PRIMARY KEY,version bigint NOT NULL)');
+EXEC(N'CREATE TYPE __SCHEMA__.external_result_changes AS TABLE(work_id uniqueidentifier NOT NULL PRIMARY KEY,expected bigint NOT NULL,state int NOT NULL,version bigint NOT NULL,attempt_count int NOT NULL,generation_attempt int NOT NULL,generation int NOT NULL,next_at datetimeoffset(7) NOT NULL,reason nvarchar(128),attempt_id uniqueidentifier NOT NULL,started_at datetimeoffset(7) NOT NULL,abandoned uniqueidentifier,attempt_status nvarchar(32) NOT NULL)');
+UPDATE __SCHEMA__.external_schema_version SET version=9 WHERE singleton=1;

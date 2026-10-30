@@ -501,12 +501,12 @@
       "eventguard.dashboard": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.30, )",
-          "EventGuard.Operations.PostgreSql": "[0.1.0-dev.30, )",
-          "EventGuard.Operations.Prometheus": "[0.1.0-dev.30, )",
-          "EventGuard.Operations.Replay.PostgreSql": "[0.1.0-dev.30, )",
-          "EventGuard.Operations.Replay.SqlServer": "[0.1.0-dev.30, )",
-          "EventGuard.Operations.SqlServer": "[0.1.0-dev.30, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
+          "EventGuard.Operations.PostgreSql": "[0.1.0-dev.31, )",
+          "EventGuard.Operations.Prometheus": "[0.1.0-dev.31, )",
+          "EventGuard.Operations.Replay.PostgreSql": "[0.1.0-dev.31, )",
+          "EventGuard.Operations.Replay.SqlServer": "[0.1.0-dev.31, )",
+          "EventGuard.Operations.SqlServer": "[0.1.0-dev.31, )",
           "Microsoft.AspNetCore.Authentication.OpenIdConnect": "[10.0.12, )",
           "prometheus-net": "[8.2.1, )"
         }
@@ -514,70 +514,70 @@
       "eventguard.entityframeworkcore": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.12, )"
         }
       },
       "eventguard.hosting": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Runtime": "[0.1.0-dev.30, )",
+          "EventGuard.Runtime": "[0.1.0-dev.31, )",
           "Microsoft.Extensions.Hosting": "[10.0.12, )"
         }
       },
       "eventguard.hosting.kafka": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Hosting": "[0.1.0-dev.30, )",
-          "EventGuard.Kafka": "[0.1.0-dev.30, )"
+          "EventGuard.Hosting": "[0.1.0-dev.31, )",
+          "EventGuard.Kafka": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.hosting.rabbitmq": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Hosting": "[0.1.0-dev.30, )",
-          "EventGuard.RabbitMq": "[0.1.0-dev.30, )"
+          "EventGuard.Hosting": "[0.1.0-dev.31, )",
+          "EventGuard.RabbitMq": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.kafka": {
         "type": "Project",
         "dependencies": {
           "Confluent.Kafka": "[2.15.1, )",
-          "EventGuard.Core": "[0.1.0-dev.30, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.operations": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.operations.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.30, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
           "Npgsql": "[10.0.3, )"
         }
       },
       "eventguard.operations.prometheus": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.30, )"
+          "EventGuard.Operations": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.operations.replay.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.30, )",
-          "EventGuard.PostgreSql": "[0.1.0-dev.30, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
+          "EventGuard.PostgreSql": "[0.1.0-dev.31, )",
           "Npgsql": "[10.0.3, )"
         }
       },
       "eventguard.operations.replay.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.30, )",
-          "EventGuard.SqlServer": "[0.1.0-dev.30, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
+          "EventGuard.SqlServer": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[9.0.21, )"
         }
@@ -585,7 +585,7 @@
       "eventguard.operations.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.30, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[9.0.21, )"
         }
@@ -593,27 +593,27 @@
       "eventguard.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Npgsql": "[10.0.3, )"
         }
       },
       "eventguard.rabbitmq": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "RabbitMQ.Client": "[7.2.2, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[9.0.21, )"
         }
@@ -1247,12 +1247,12 @@
       "eventguard.dashboard": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.30, )",
-          "EventGuard.Operations.PostgreSql": "[0.1.0-dev.30, )",
-          "EventGuard.Operations.Prometheus": "[0.1.0-dev.30, )",
-          "EventGuard.Operations.Replay.PostgreSql": "[0.1.0-dev.30, )",
-          "EventGuard.Operations.Replay.SqlServer": "[0.1.0-dev.30, )",
-          "EventGuard.Operations.SqlServer": "[0.1.0-dev.30, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
+          "EventGuard.Operations.PostgreSql": "[0.1.0-dev.31, )",
+          "EventGuard.Operations.Prometheus": "[0.1.0-dev.31, )",
+          "EventGuard.Operations.Replay.PostgreSql": "[0.1.0-dev.31, )",
+          "EventGuard.Operations.Replay.SqlServer": "[0.1.0-dev.31, )",
+          "EventGuard.Operations.SqlServer": "[0.1.0-dev.31, )",
           "Microsoft.AspNetCore.Authentication.OpenIdConnect": "[8.0.31, )",
           "prometheus-net": "[8.2.1, )"
         }
@@ -1260,70 +1260,70 @@
       "eventguard.entityframeworkcore": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Microsoft.EntityFrameworkCore.Relational": "[8.0.31, )"
         }
       },
       "eventguard.hosting": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Runtime": "[0.1.0-dev.30, )",
+          "EventGuard.Runtime": "[0.1.0-dev.31, )",
           "Microsoft.Extensions.Hosting": "[8.0.1, )"
         }
       },
       "eventguard.hosting.kafka": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Hosting": "[0.1.0-dev.30, )",
-          "EventGuard.Kafka": "[0.1.0-dev.30, )"
+          "EventGuard.Hosting": "[0.1.0-dev.31, )",
+          "EventGuard.Kafka": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.hosting.rabbitmq": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Hosting": "[0.1.0-dev.30, )",
-          "EventGuard.RabbitMq": "[0.1.0-dev.30, )"
+          "EventGuard.Hosting": "[0.1.0-dev.31, )",
+          "EventGuard.RabbitMq": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.kafka": {
         "type": "Project",
         "dependencies": {
           "Confluent.Kafka": "[2.15.1, )",
-          "EventGuard.Core": "[0.1.0-dev.30, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.operations": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.operations.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.30, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
           "Npgsql": "[8.0.9, )"
         }
       },
       "eventguard.operations.prometheus": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.30, )"
+          "EventGuard.Operations": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.operations.replay.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.30, )",
-          "EventGuard.PostgreSql": "[0.1.0-dev.30, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
+          "EventGuard.PostgreSql": "[0.1.0-dev.31, )",
           "Npgsql": "[8.0.9, )"
         }
       },
       "eventguard.operations.replay.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.30, )",
-          "EventGuard.SqlServer": "[0.1.0-dev.30, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
+          "EventGuard.SqlServer": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[8.0.2, )"
         }
@@ -1331,7 +1331,7 @@
       "eventguard.operations.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.30, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[8.0.2, )"
         }
@@ -1339,27 +1339,27 @@
       "eventguard.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Npgsql": "[8.0.9, )"
         }
       },
       "eventguard.rabbitmq": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "RabbitMQ.Client": "[7.2.2, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.30, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[8.0.2, )"
         }

@@ -185,19 +185,19 @@
       "eventguard.operations": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.operations.prometheus": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.29, )"
+          "EventGuard.Operations": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       }
     },
@@ -385,19 +385,19 @@
       "eventguard.operations": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.operations.prometheus": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.29, )"
+          "EventGuard.Operations": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.runtime": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       }
     }

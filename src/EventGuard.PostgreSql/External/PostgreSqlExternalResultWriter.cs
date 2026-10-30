@@ -28,19 +28,7 @@ internal sealed class PostgreSqlExternalResultWriter(NpgsqlConnection connection
             command.Parameters.AddWithValue("scope", target.Scope.Id);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             if (!await reader.ReadAsync(cancellationToken)) throw new InvalidOperationException("Work does not belong to this result handler.");
-            var action = new ExternalAction(new(reader.GetString(0), reader.GetString(1)), reader.GetGuid(2), reader.GetString(3), reader.GetString(4),
-                reader.GetFieldValue<byte[]>(5), reader.IsDBNull(6) ? null : TimeSpan.FromMilliseconds(reader.GetInt64(6)));
-            var savedTarget = new ExternalResultTarget(action.Scope, reader.GetString(10), reader.GetString(11));
-            var fingerprint = PostgreSqlExternalActionWriter.Fingerprint(action, reader.IsDBNull(8) ? null : reader.GetGuid(8),
-                reader.IsDBNull(9) ? null : reader.GetGuid(9), savedTarget);
-            if (fingerprint != reader.GetString(7) || savedTarget.Id != target.Id || reader.GetString(24) != target.WorkScope.Id)
-                throw new InvalidOperationException("External result binding or source content is corrupt.");
-            ExternalResult? response = reader.IsDBNull(19) ? null : new((ExternalResultKind)reader.GetInt32(19), reader.GetString(20),
-                reader.IsDBNull(21) ? null : reader.GetString(21), reader.GetFieldValue<byte[]>(22));
-            update = new(action, reader.GetInt64(12), (ExternalActionState)reader.GetInt32(13), (ExternalObservationState)reader.GetInt32(14),
-                (ExternalPhase)reader.GetInt32(15), reader.IsDBNull(16) ? null : reader.GetString(16), reader.IsDBNull(17) ? null : reader.GetString(17),
-                reader.GetFieldValue<byte[]>(18), response);
-            if (update.Fingerprint != reader.GetString(23)) throw new InvalidOperationException("External result snapshot is corrupt.");
+            update = ReadUpdate(reader, target);
         }
         // Each logical action has a monotonic application projection. Workers can process different actions concurrently.
         await PostgreSqlProtocol.LockAsync(connection, transaction, "external-result-position:" + schema + ":" + target.Id + ":" + update.Action.Id, cancellationToken);
@@ -72,4 +60,22 @@ internal sealed class PostgreSqlExternalResultWriter(NpgsqlConnection connection
         }
         return ExternalResultApplyStatus.Applied;
     }
+    internal static ExternalActionUpdate ReadUpdate(NpgsqlDataReader reader, ExternalResultTarget target)
+    {
+            var action = new ExternalAction(new(reader.GetString(0), reader.GetString(1)), reader.GetGuid(2), reader.GetString(3), reader.GetString(4),
+                reader.GetFieldValue<byte[]>(5), reader.IsDBNull(6) ? null : TimeSpan.FromMilliseconds(reader.GetInt64(6)));
+            var savedTarget = new ExternalResultTarget(action.Scope, reader.GetString(10), reader.GetString(11));
+            var fingerprint = PostgreSqlExternalActionWriter.Fingerprint(action, reader.IsDBNull(8) ? null : reader.GetGuid(8),
+                reader.IsDBNull(9) ? null : reader.GetGuid(9), savedTarget);
+            if (fingerprint != reader.GetString(7) || savedTarget.Id != target.Id || reader.GetString(24) != target.WorkScope.Id)
+                throw new InvalidOperationException("External result binding or source content is corrupt.");
+            ExternalResult? response = reader.IsDBNull(19) ? null : new((ExternalResultKind)reader.GetInt32(19), reader.GetString(20),
+                reader.IsDBNull(21) ? null : reader.GetString(21), reader.GetFieldValue<byte[]>(22));
+            var update = new ExternalActionUpdate(action, reader.GetInt64(12), (ExternalActionState)reader.GetInt32(13), (ExternalObservationState)reader.GetInt32(14),
+                (ExternalPhase)reader.GetInt32(15), reader.IsDBNull(16) ? null : reader.GetString(16), reader.IsDBNull(17) ? null : reader.GetString(17),
+                reader.GetFieldValue<byte[]>(18), response);
+            if (update.Fingerprint != reader.GetString(23)) throw new InvalidOperationException("External result snapshot is corrupt.");
+            return update;
+    }
+
 }

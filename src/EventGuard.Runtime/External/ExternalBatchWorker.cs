@@ -61,16 +61,22 @@ public sealed class ExternalBatchWorker
             throw new NotSupportedException("Adapter does not support the selected batch phase.");
         if ((limit is null) != (limiter is null)) throw new ArgumentException("Supply both a shared limit and its limiter.");
         _phase = phase; _policy = policy ?? new(); _options = options ?? new(); _limit = limit; _limiter = limiter;
+        _maintenance = limiter is null ? null : new(limiter, limit, _options.Pump);
         if (_options.RequireNativeStorage && !UsesNativeStorage)
             throw new NotSupportedException("The selected store does not implement native external batching.");
     }
+
+    private readonly ExternalPermitMaintenance? _maintenance;
 
     public async Task<ExternalBatchRunResult?> RunOnceAsync(CancellationToken cancellationToken = default)
     {
         ExternalCallPermit? permit = null;
         if (_limiter is not null)
         {
-            permit = await _limiter.TryAcquireCallAsync(_limit!, Guid.NewGuid(), _options.Pump.LeaseDuration, cancellationToken);
+            await _maintenance!.RunAsync(cancellationToken);
+            if (_store is IExternalActionAvailability available
+                && !await available.HasDueActionsAsync(_scope, _adapter.Binding, _adapter.BindingVersion, _phase, cancellationToken)) return null;
+            permit = await _limiter.TryAcquireCallAsync(_limit!, ExternalCallRequestIds.New(), _options.Pump.LeaseDuration, cancellationToken);
             if (permit is null) return null;
         }
         var invoked = false;

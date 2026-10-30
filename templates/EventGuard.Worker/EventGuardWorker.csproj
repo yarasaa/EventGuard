@@ -8,11 +8,11 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="EventGuard.Hosting" Version="0.1.0-dev.30" />
-    <PackageReference Include="EventGuard.PostgreSql" Version="0.1.0-dev.30" />
-    <PackageReference Include="EventGuard.SqlServer" Version="0.1.0-dev.30" />
-    <PackageReference Include="EventGuard.Operations.PostgreSql" Version="0.1.0-dev.30" />
-    <PackageReference Include="EventGuard.Operations.SqlServer" Version="0.1.0-dev.30" />
+    <PackageReference Include="EventGuard.Hosting" Version="0.1.0-dev.31" />
+    <PackageReference Include="EventGuard.PostgreSql" Version="0.1.0-dev.31" />
+    <PackageReference Include="EventGuard.SqlServer" Version="0.1.0-dev.31" />
+    <PackageReference Include="EventGuard.Operations.PostgreSql" Version="0.1.0-dev.31" />
+    <PackageReference Include="EventGuard.Operations.SqlServer" Version="0.1.0-dev.31" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" Condition="'$(TargetFramework)' == 'net8.0'" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" Condition="'$(TargetFramework)' != 'net8.0'" />
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />

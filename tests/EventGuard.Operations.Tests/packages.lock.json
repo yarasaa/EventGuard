@@ -243,29 +243,29 @@
       "eventguard.operations": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.operations.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.29, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
           "Npgsql": "[10.0.3, )"
         }
       },
       "eventguard.operations.replay.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.29, )",
-          "EventGuard.PostgreSql": "[0.1.0-dev.29, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
+          "EventGuard.PostgreSql": "[0.1.0-dev.31, )",
           "Npgsql": "[10.0.3, )"
         }
       },
       "eventguard.operations.replay.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.29, )",
-          "EventGuard.SqlServer": "[0.1.0-dev.29, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
+          "EventGuard.SqlServer": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[9.0.21, )"
         }
@@ -273,7 +273,7 @@
       "eventguard.operations.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.29, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[9.0.21, )"
         }
@@ -281,14 +281,14 @@
       "eventguard.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Npgsql": "[10.0.3, )"
         }
       },
       "eventguard.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[9.0.21, )"
         }
@@ -296,7 +296,7 @@
       "eventguard.store.conformance": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "xunit": "[2.9.3, )"
         }
       },
@@ -576,29 +576,29 @@
       "eventguard.operations": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )"
+          "EventGuard.Core": "[0.1.0-dev.31, )"
         }
       },
       "eventguard.operations.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.29, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
           "Npgsql": "[8.0.9, )"
         }
       },
       "eventguard.operations.replay.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.29, )",
-          "EventGuard.PostgreSql": "[0.1.0-dev.29, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
+          "EventGuard.PostgreSql": "[0.1.0-dev.31, )",
           "Npgsql": "[8.0.9, )"
         }
       },
       "eventguard.operations.replay.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.29, )",
-          "EventGuard.SqlServer": "[0.1.0-dev.29, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
+          "EventGuard.SqlServer": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[8.0.2, )"
         }
@@ -606,7 +606,7 @@
       "eventguard.operations.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Operations": "[0.1.0-dev.29, )",
+          "EventGuard.Operations": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[8.0.2, )"
         }
@@ -614,14 +614,14 @@
       "eventguard.postgresql": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Npgsql": "[8.0.9, )"
         }
       },
       "eventguard.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "Microsoft.Data.SqlClient": "[7.0.3, )",
           "System.Security.Cryptography.Pkcs": "[8.0.2, )"
         }
@@ -629,7 +629,7 @@
       "eventguard.store.conformance": {
         "type": "Project",
         "dependencies": {
-          "EventGuard.Core": "[0.1.0-dev.29, )",
+          "EventGuard.Core": "[0.1.0-dev.31, )",
           "xunit": "[2.9.3, )"
         }
       },

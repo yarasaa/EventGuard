@@ -15,6 +15,22 @@ public sealed class ConfigurationTests
     private static EventGuardConfiguration Read(string json) => new(Json(json).GetSection("EventGuard"));
 
     [Fact]
+    public void Result_pages_and_permit_retention_can_be_configured_without_changing_handlers()
+    {
+        var settings = Read("""
+            {"EventGuard":{"Defaults":{"ResultBatch":{"MaximumItems":250,"MaximumBytes":16777216}},
+              "Workers":{"projection":{"ResultBatch":{"ExecutionTimeout":"00:00:12","FailureRecordingTimeout":"00:00:03"},
+              "Worker":{"ExternalPermitRetention":"disabled","ExternalPermitCleanupInterval":"00:01:00"}}}}}
+            """);
+        var batch = settings.GetResultBatchOptions("projection");
+        Assert.Equal(250,batch.MaximumItems); Assert.Equal(16777216,batch.MaximumBytes);
+        Assert.Equal(TimeSpan.FromSeconds(12),batch.ExecutionTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(3),batch.FailureRecordingTimeout);
+        Assert.Null(settings.GetWorkerOptions("projection").ExternalPermitRetention);
+        Assert.Equal(TimeSpan.FromMinutes(1),settings.GetWorkerOptions("projection").ExternalPermitCleanupInterval);
+    }
+
+    [Fact]
     public void Named_settings_override_common_defaults_and_preserve_code_capabilities()
     {
         var settings = Read("""

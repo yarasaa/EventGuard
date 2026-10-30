@@ -6,7 +6,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-    <Version>0.1.0-dev.30</Version>
+    <Version>0.1.0-dev.31</Version>
     <Authors>EventGuard contributors</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>eventguard.png</PackageIcon>
